@@ -4,6 +4,7 @@
 -export([insert/3]).
 -export([remove/2]).
 -export([update/3]).
+-export([map/2]).
 
 -type tree() :: map().
 -type path() :: [any()].
@@ -169,3 +170,24 @@ update(Tree, Path, Fun) ->
         {error, Error} ->
             {error, Error}
     end.
+
+-spec map(tree(), fun((path(), {leaf, any()}) -> {leaf, any()} | nothing)) -> tree().
+map(Tree, Fun) ->
+    case map(Tree, Fun, []) of
+        nothing -> new();
+        NewTree -> NewTree
+    end.
+
+map(Tree, Fun, Path) when is_map(Tree) ->
+    Entries = [{Key, map(Value, Fun, Path ++ [Key])} ||
+                   {Key, Value} <- maps:to_list(Tree)],
+    EntriesNotNothing = [{Key, Value}
+                             || {Key, Value} <- Entries,
+                                Value =/= nothing],
+    case EntriesNotNothing of
+        [] -> nothing;
+        _ -> maps:from_list(EntriesNotNothing)
+    end;
+
+map({leaf, L}, Fun, Path) ->
+    Fun(Path, {leaf, L}).

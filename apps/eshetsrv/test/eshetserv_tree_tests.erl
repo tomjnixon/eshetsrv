@@ -54,3 +54,39 @@ remove_errors_test() ->
     {error, no_such_node} = eshetsrv_tree:remove(example(), [b, e]),
     {error, not_a_directory} = eshetsrv_tree:remove(example(), [a, e]),
     {error, no_such_node} = eshetsrv_tree:remove(example(), [c, e]).
+
+map_no_change_test() ->
+    Result = eshetsrv_tree:map(example(),
+                               fun(P, {leaf, L}) ->
+                                       RealPath = case L of
+                                                      leaf_a -> [a];
+                                                      leaf_c -> [b, c];
+                                                      leaf_d -> [b, d]
+                                                  end,
+                                       ?assertEqual(RealPath, P),
+                                       {leaf, L}
+                               end),
+    ?assertEqual(example(), Result).
+
+map_remove_test() ->
+    Result = eshetsrv_tree:map(example(),
+                               fun (_, {leaf, leaf_c}) -> nothing;
+                                   (_, {leaf, leaf_d}) -> nothing;
+                                   (_, {leaf, L}) -> {leaf, L}
+                               end),
+    ?assertEqual(#{a=>{leaf, leaf_a}}, Result).
+
+map_remove_all_test() ->
+    Result = eshetsrv_tree:map(example(), fun (_, _) -> nothing end),
+    ?assertEqual(#{}, Result).
+
+map_mod_test() ->
+    Result = eshetsrv_tree:map(example(),
+                               fun (_, {leaf, leaf_c}) -> {leaf, leaf_x};
+                                   (_, {leaf, L}) -> {leaf, L}
+                               end),
+    Expected = #{a=>{leaf, leaf_a},
+                 b=>#{
+                   c=>{leaf, leaf_x},
+                   d=>{leaf, leaf_d}}},
+    ?assertEqual(Expected, Result).
