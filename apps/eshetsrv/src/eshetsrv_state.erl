@@ -49,6 +49,8 @@ init([]) ->
     {ok, #state{tree=Tree}}.
 
 
+% actions
+
 handle_call({register, action_owner, Path, Pid}, _From, State=#state{tree=Tree}) ->
     case check(Path, Pid) of
         {error, E} -> {reply, {error, E}, State};
@@ -57,6 +59,17 @@ handle_call({register, action_owner, Path, Pid}, _From, State=#state{tree=Tree})
                      eshetsrv_tree:insert(Tree, Parts, #{type => action,
                                                          owner => Pid}))
     end;
+handle_call({lookup, action_owner, Path}, _From, State=#state{tree=Tree}) ->
+    case check(Path) of
+        {error, E} -> {reply, {error, E}, State};
+        {ok, Parts} ->
+            case lookup_node_type(Tree, Parts, action) of
+                {leaf, #{owner := Pid}} -> {reply, {ok, Pid}, State};
+                {error, E} -> {reply, {error, E}, State}
+            end
+    end;
+
+% props
 
 handle_call({register, prop_owner, Path, Pid}, _From, State=#state{tree=Tree}) ->
     case check(Path, Pid) of
@@ -66,6 +79,17 @@ handle_call({register, prop_owner, Path, Pid}, _From, State=#state{tree=Tree}) -
                      eshetsrv_tree:insert(Tree, Parts, #{type => prop,
                                                          owner => Pid}))
     end;
+handle_call({lookup, prop_owner, Path}, _From, State=#state{tree=Tree}) ->
+    case check(Path) of
+        {error, E} -> {reply, {error, E}, State};
+        {ok, Parts} ->
+            case lookup_node_type(Tree, Parts, prop) of
+                {leaf, #{owner := Pid}} -> {reply, {ok, Pid}, State};
+                {error, E} -> {reply, {error, E}, State}
+            end
+    end;
+
+% events
 
 handle_call({register, event_owner, Path, Pid}, _From, State) ->
     case check(Path, Pid) of
@@ -78,7 +102,6 @@ handle_call({register, event_owner, Path, Pid}, _From, State) ->
                                    {error, path_already_exists}
                            end)
     end;
-
 handle_call({register, event_listener, Path, Pid}, _From, State) ->
     case check(Path, Pid) of
         {error, E} -> {reply, {error, E}, State};
@@ -88,8 +111,29 @@ handle_call({register, event_listener, Path, Pid}, _From, State) ->
                                    {leaf, L#{listeners := sets:add_element(Pid, Listeners)}}
                            end)
     end;
+handle_call({lookup, event_owner, Path}, _From, State=#state{tree=Tree}) ->
+    case check(Path) of
+        {error, E} -> {reply, {error, E}, State};
+        {ok, Parts} ->
+            case lookup_node_type(Tree, Parts, event) of
+                {leaf, #{owner := none}} -> {reply, {error, no_owner}, State};
+                {leaf, #{owner := Pid}} -> {reply, {ok, Pid}, State};
+                {error, E} -> {reply, {error, E}, State}
+            end
+    end;
+handle_call({lookup, event_listeners, Path}, _From, State=#state{tree=Tree}) ->
+    case check(Path) of
+        {error, E} -> {reply, {error, E}, State};
+        {ok, Parts} ->
+            case lookup_node_type(Tree, Parts, event) of
+                {leaf, #{listeners := Listeners}} -> {reply, {ok, sets:to_list(Listeners)}, State};
+                {error, E} -> {reply, {error, E}, State}
+            end
+    end;
 
-handle_call({register, state, Path, Pid}, _From, State) ->
+% states
+
+handle_call({register, state_owner, Path, Pid}, _From, State) ->
     case check(Path, Pid) of
         {error, E} -> {reply, {error, E}, State};
         {ok, Parts} ->
@@ -121,47 +165,6 @@ handle_call({update_state, Path, Pid, State}, _From, State=#state{tree=Tree}) ->
                     ({leaf, #{type := _}}) ->
                         {error, wrong_type_of_node}
                 end))
-    end;
-
-handle_call({lookup, action_owner, Path}, _From, State=#state{tree=Tree}) ->
-    case check(Path) of
-        {error, E} -> {reply, {error, E}, State};
-        {ok, Parts} ->
-            case lookup_node_type(Tree, Parts, action) of
-                {leaf, #{owner := Pid}} -> {reply, {ok, Pid}, State};
-                {error, E} -> {reply, {error, E}, State}
-            end
-    end;
-
-handle_call({lookup, prop_owner, Path}, _From, State=#state{tree=Tree}) ->
-    case check(Path) of
-        {error, E} -> {reply, {error, E}, State};
-        {ok, Parts} ->
-            case lookup_node_type(Tree, Parts, prop) of
-                {leaf, #{owner := Pid}} -> {reply, {ok, Pid}, State};
-                {error, E} -> {reply, {error, E}, State}
-            end
-    end;
-
-handle_call({lookup, event_owner, Path}, _From, State=#state{tree=Tree}) ->
-    case check(Path) of
-        {error, E} -> {reply, {error, E}, State};
-        {ok, Parts} ->
-            case lookup_node_type(Tree, Parts, event) of
-                {leaf, #{owner := none}} -> {reply, {error, no_owner}, State};
-                {leaf, #{owner := Pid}} -> {reply, {ok, Pid}, State};
-                {error, E} -> {reply, {error, E}, State}
-            end
-    end;
-
-handle_call({lookup, event_listeners, Path}, _From, State=#state{tree=Tree}) ->
-    case check(Path) of
-        {error, E} -> {reply, {error, E}, State};
-        {ok, Parts} ->
-            case lookup_node_type(Tree, Parts, event) of
-                {leaf, #{listeners := Listeners}} -> {reply, {ok, sets:to_list(Listeners)}, State};
-                {error, E} -> {reply, {error, E}, State}
-            end
     end;
 
 handle_call(_Request, _From, State) ->
