@@ -17,7 +17,7 @@
 
 -record(state, {
           tree
-}).
+         }).
 
 %% API.
 
@@ -171,8 +171,8 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_info({'EXIT', _Pid, _Reason}, State) ->
-    {noreply, State};
     % {noreply, deregister(Pid, State)};
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
