@@ -5,7 +5,10 @@ new_test() ->
     eshetsrv_tree:new().
 
 example() ->
-    #{a=>{leaf, leaf_a}, b=>#{c=>{leaf, leaf_c}, d=>{leaf, leaf_d}}}.
+    #{a=>{leaf, leaf_a},
+      b=>#{
+        c=>{leaf, leaf_c},
+        d=>{leaf, leaf_d}}}.
 
 lookup_test() ->
     directory = eshetsrv_tree:lookup(example(), []),
