@@ -13,7 +13,7 @@
 -export([terminate/2]).
 -export([code_change/3]).
 
--type opts() :: [].
+-type opts() :: [any()].
 -export_type([opts/0]).
 
 -record(state, {
