@@ -1,7 +1,7 @@
 -module(eshet).
 
 -export([path_valid/1]).
--export([path_split/1]).
+-export([path_split/1, path_unsplit/1]).
 
 -export([action_register/2, action_call/3]).
 -export([prop_register/2, prop_set/3, prop_get/2]).
@@ -17,6 +17,10 @@ path_valid(Path) ->
 
 path_split(Path) ->
     binary:split(Path, <<"/">>, [trim_all, global]).
+
+
+path_unsplit(Parts) ->
+    list_to_binary([<<"/">> | lists:join(<<"/">>, Parts)]).
 
 
 action_register(Srv, Path) ->
