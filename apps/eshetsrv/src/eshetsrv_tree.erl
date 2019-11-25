@@ -171,7 +171,7 @@ update(Tree, Path, Fun) ->
             {error, Error}
     end.
 
--spec map(tree(), fun((path(), {leaf, any()}) -> {leaf, any()} | nothing)) -> tree().
+-spec map(tree(), fun((path(), any()) -> {leaf, any()} | nothing)) -> tree().
 map(Tree, Fun) ->
     case map(Tree, Fun, []) of
         nothing -> new();
@@ -190,4 +190,4 @@ map(Tree, Fun, Path) when is_map(Tree) ->
     end;
 
 map({leaf, L}, Fun, Path) ->
-    Fun(Path, {leaf, L}).
+    Fun(Path, L).

@@ -57,8 +57,8 @@ register_event_first(Pid) ->
                   eshetsrv_state:register(Pid, event_owner, <<"/foo">>, Self)),
     ?assertEqual({error, path_already_exists},
                   eshetsrv_state:register(Pid, event_owner, <<"/foo">>, Self)),
-     ?_assertEqual({ok, Self},
-                   eshetsrv_state:lookup(Pid, event_owner, <<"/foo">>)),
+    ?assertEqual({ok, Self},
+                 eshetsrv_state:lookup(Pid, event_owner, <<"/foo">>)),
 
     % listen once
     ?assertEqual(ok,
@@ -100,6 +100,50 @@ register_listener_first(Pid) ->
                    eshetsrv_state:lookup(Pid, event_owner, <<"/foo">>))
     ].
 
+state_test_() ->
+    [
+     {"register state",
+      ?setup({with, [fun register_state/1]})},
+     {"observe before register state",
+      ?setup({with, [fun observe_before_register_state/1]})}
+    ].
+
+register_state(Pid) ->
+    Self = self(),
+    ?assertEqual(ok,
+                 eshetsrv_state:register(Pid, state_owner, <<"/foo">>, Self)),
+
+    ?assertEqual({ok, unknown},
+                 eshetsrv_state:register(Pid, state_observer, <<"/foo">>, Self)),
+
+    ?assertEqual(ok,
+                 eshetsrv_state:state_changed(Pid, <<"/foo">>, Self, some_state)),
+    ok = receive
+        {'$gen_cast', {state_changed, <<"/foo">>, {known, some_state}}} ->
+            ok
+    after
+        10000 -> timeout
+    end.
+
+observe_before_register_state(Pid) ->
+    Self = self(),
+    ?assertEqual({ok, unknown},
+                 eshetsrv_state:register(Pid, state_observer, <<"/foo">>, Self)),
+
+    ?assertEqual(ok,
+                 eshetsrv_state:register(Pid, state_owner, <<"/foo">>, Self)),
+
+    ?assertEqual(ok,
+                 eshetsrv_state:state_changed(Pid, <<"/foo">>, Self, some_state)),
+    ok = receive
+        {'$gen_cast', {state_changed, <<"/foo">>, {known, some_state}}} ->
+            ok
+    after
+        10000 -> timeout
+    end.
+
+
+
 link_test_() ->
     [
      {"register then exit immediately",
@@ -115,17 +159,19 @@ register_exit(Pid) ->
     {_Pid, MonitorRef} = spawn_monitor(F),
     receive
         {_Tag, MonitorRef, _Type, _Object, _Info} -> 
-            ?_assertEqual([], eshetsrv_state:lookup(Pid, action_owner, <<"/foo">>))
+            timer:sleep(50),
+            ?_assertEqual({error,path_not_found}, eshetsrv_state:lookup(Pid, action_owner, <<"/foo">>))
     end.
 
 
 register_check_exit(Pid) ->
     F = fun () ->
                 eshetsrv_state:register(Pid, action_owner, <<"/foo">>, self()),
-                ?assertEqual([self()], eshetsrv_state:lookup(Pid, action_owner, <<"/foo">>))
+                ?assertEqual({ok, self()}, eshetsrv_state:lookup(Pid, action_owner, <<"/foo">>))
         end,
     {_Pid, MonitorRef} = spawn_monitor(F),
     receive
         {_Tag, MonitorRef, _Type, _Object, _Info} -> 
-            ?_assertEqual([], eshetsrv_state:lookup(Pid, action_owner, <<"/foo">>))
+            timer:sleep(50),
+            ?_assertEqual({error,path_not_found}, eshetsrv_state:lookup(Pid, action_owner, <<"/foo">>))
     end.

@@ -60,7 +60,7 @@ remove_errors_test() ->
 
 map_no_change_test() ->
     Result = eshetsrv_tree:map(example(),
-                               fun(P, {leaf, L}) ->
+                               fun(P, L) ->
                                        RealPath = case L of
                                                       leaf_a -> [a];
                                                       leaf_c -> [b, c];
@@ -73,9 +73,9 @@ map_no_change_test() ->
 
 map_remove_test() ->
     Result = eshetsrv_tree:map(example(),
-                               fun (_, {leaf, leaf_c}) -> nothing;
-                                   (_, {leaf, leaf_d}) -> nothing;
-                                   (_, {leaf, L}) -> {leaf, L}
+                               fun (_, leaf_c) -> nothing;
+                                   (_, leaf_d) -> nothing;
+                                   (_, L) -> {leaf, L}
                                end),
     ?assertEqual(#{a=>{leaf, leaf_a}}, Result).
 
@@ -85,8 +85,8 @@ map_remove_all_test() ->
 
 map_mod_test() ->
     Result = eshetsrv_tree:map(example(),
-                               fun (_, {leaf, leaf_c}) -> {leaf, leaf_x};
-                                   (_, {leaf, L}) -> {leaf, L}
+                               fun (_, leaf_c) -> {leaf, leaf_x};
+                                   (_, L) -> {leaf, L}
                                end),
     Expected = #{a=>{leaf, leaf_a},
                  b=>#{

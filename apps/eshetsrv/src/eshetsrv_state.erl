@@ -5,7 +5,7 @@
 -export([start_link/0, start_link/1]).
 -export([register/4]).
 -export([lookup/3]).
--export([update_state/4]).
+-export([state_changed/4]).
 
 %% gen_server.
 -export([init/1]).
@@ -38,8 +38,8 @@ register(Srv, Type, Path, Pid) ->
 lookup(Srv, Type, Path) ->
     gen_server:call(Srv, {lookup, Type, Path}).
 
-update_state(Srv, Path, State, Pid) ->
-    gen_server:call(Srv, {update_state, Path, State, Pid}).
+state_changed(Srv, Path, Pid, State) ->
+    gen_server:call(Srv, {state_changed, Path, Pid, State}).
 
 %% gen_server.
 
@@ -55,6 +55,7 @@ handle_call({register, action_owner, Path, Pid}, _From, State=#state{tree=Tree})
     case check(Path, Pid) of
         {error, E} -> {reply, {error, E}, State};
         {ok, Parts} ->
+            monitor(process, Pid),
             to_reply(State,
                      eshetsrv_tree:insert(Tree, Parts, #{type => action,
                                                          owner => Pid}))
@@ -75,6 +76,7 @@ handle_call({register, prop_owner, Path, Pid}, _From, State=#state{tree=Tree}) -
     case check(Path, Pid) of
         {error, E} -> {reply, {error, E}, State};
         {ok, Parts} ->
+            monitor(process, Pid),
             to_reply(State,
                      eshetsrv_tree:insert(Tree, Parts, #{type => prop,
                                                          owner => Pid}))
@@ -95,6 +97,7 @@ handle_call({register, event_owner, Path, Pid}, _From, State) ->
     case check(Path, Pid) of
         {error, E} -> {reply, {error, E}, State};
         {ok, Parts} ->
+            monitor(process, Pid),
             update_generic(State, Parts, event, #{owner => Pid, listeners => sets:new()},
                            fun (L =  #{owner := none}) ->
                                    {leaf, L#{owner => Pid}};
@@ -106,6 +109,7 @@ handle_call({register, event_listener, Path, Pid}, _From, State) ->
     case check(Path, Pid) of
         {error, E} -> {reply, {error, E}, State};
         {ok, Parts} ->
+            monitor(process, Pid),
             update_generic(State, Parts, event, #{owner => none, listeners => sets:from_list([Pid])},
                            fun (L =  #{listeners := Listeners}) ->
                                    {leaf, L#{listeners := sets:add_element(Pid, Listeners)}}
@@ -133,19 +137,49 @@ handle_call({lookup, event_listeners, Path}, _From, State=#state{tree=Tree}) ->
 
 % states
 
+% state can change like:
+%     start(register observer) -> #{owner => none, state => unknown}
+%     start(register owner) -> #{owner => pid(), state => unknown}
+%     update: #{owner => pid(), state => unknown} -> #{owner => pid(), state => {known, any()}}
+%     remove: #{owner => pid(), state => unknown} ->#{owner => none, state => unknown}
+%           : #{owner => pid(), state => {known, any()} ->#{owner => none, state => unknown}
+%
+% therefore the possible states are:
+%     #{owner => none, state => unknown}
+%     #{owner => pid(), state => unknown}
+%     #{owner => pid(), state => {known, any()}}
+
 handle_call({register, state_owner, Path, Pid}, _From, State) ->
     case check(Path, Pid) of
         {error, E} -> {reply, {error, E}, State};
         {ok, Parts} ->
-            update_generic(State, Parts, state, #{owner => Pid, listeners => sets:new(), state => unknown},
-                           fun (L = #{owner := none}) ->
+            monitor(process, Pid),
+            update_generic(State, Parts, state, #{owner => Pid, observers => sets:new(), state => unknown},
+                           fun (L = #{owner := none, state := unknown}) ->
+                                   % still unknown, no need to update
                                    {leaf, L#{owner => Pid}};
                                (#{owner := _}) ->
                                    {error, path_already_exists}
                            end)
     end;
 
-handle_call({update_state, Path, Pid, State}, _From, State=#state{tree=Tree}) ->
+handle_call({register, state_observer, Path, Pid}, _From, State) ->
+    case check(Path, Pid) of
+        {error, E} -> {reply, {error, E}, State};
+        {ok, Parts} ->
+            monitor(process, Pid),
+            update_generic(
+              State, Parts, state,
+              {#{owner => none,
+                observers => sets:from_list([Pid]),
+                state => unknown},
+               unknown},
+              fun (L=#{type := state, observers := Observers, state := S}) ->
+                      {leaf, L#{observers => sets:add_element(Pid, Observers)}, S}
+              end)
+    end;
+
+handle_call({state_changed, Path, Pid, St}, _From, State=#state{tree=Tree}) ->
     case check(Path, Pid) of
         {error, E} -> {reply, {error, E}, State};
         {ok, Parts} ->
@@ -156,9 +190,10 @@ handle_call({update_state, Path, Pid, State}, _From, State=#state{tree=Tree}) ->
                 fun (nothing) -> {error, no_such_node};
                     ({leaf, L=#{type := state}}) -> 
                         case L of
-                            #{owner := Pid} ->
-                                % send out updates
-                                {node, L#{state => {known, State}}};
+                            #{owner := Pid, observers := Observers} ->
+                                [gen_server:cast(Observer, {state_changed, Path, {known, St}})
+                                 || Observer <- sets:to_list(Observers)],
+                                {leaf, L#{state => {known, St}}};
                             #{owner := _} ->
                                 {error, not_owner}
                         end;
@@ -173,9 +208,8 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info({'EXIT', _Pid, _Reason}, State) ->
-    % {noreply, deregister(Pid, State)};
-    {noreply, State};
+handle_info({'DOWN', _Ref, _Type, Pid, _Reason}, State) ->
+    {noreply, deregister(Pid, State)};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -186,6 +220,37 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %% internal
+
+deregister_from_node(_Path, #{type := action, owner := Pid}, Pid) -> nothing;
+deregister_from_node(_Path, V=#{type := action, owner := _}, _) -> {leaf, V};
+deregister_from_node(_Path, #{type := prop, owner := Pid}, Pid) -> nothing;
+deregister_from_node(_Path, V=#{type := prop, owner := _}, _) -> {leaf, V};
+
+deregister_from_node(_Path, V=#{type := event, owner := Owner, listeners := Listeners}, Pid) ->
+    NewOwner = case Owner of
+                    Pid -> none;
+                    _ -> Owner
+                end,
+    NewListeners = sets:del_element(Pid, Listeners),
+
+    case {NewOwner, sets:is_empty(NewListeners)} of
+        {none, true} -> nothing;
+        _ -> {leaf, V#{owner => NewOwner, listeners => NewListeners}}
+    end;
+
+% XXX: implement this
+deregister_from_node(_Path, _V=#{type := state,
+                                owner := _Owner,
+                                state := _State,
+                                observers := _Observers}, _Pid) -> nothing.
+
+
+deregister(Pid, State=#state{tree=Tree}) ->
+    NewTree = eshetsrv_tree:map(Tree,
+                                fun (Path, Value) ->
+                                        deregister_from_node(Path, Value, Pid)
+                                end),
+    State#state{tree=NewTree}.
 
 check(Path) when is_binary(Path) ->
     case eshet:path_valid(Path) of
@@ -205,12 +270,19 @@ check(_Path, _Pid) ->
 to_reply(State, {error, E}) ->
     {reply, {error, E}, State};
 to_reply(State, {ok, NewTree}) ->
-    {reply, ok, State#state{tree=NewTree}}.
+    {reply, ok, State#state{tree=NewTree}};
+to_reply(State, {ok, NewTree, Ret}) ->
+    {reply, {ok, Ret}, State#state{tree=NewTree}}.
 
 update_generic(State=#state{tree=Tree}, Parts, Type, Initial, Existing) ->
     to_reply(State,
              eshetsrv_tree:update(Tree, Parts, fun (nothing) ->
-                                                       {leaf, Initial#{type => Type}};
+                                                       case Initial of
+                                                           Leaf when is_map(Leaf) ->
+                                                               {leaf, Leaf#{type => Type}};
+                                                           {Leaf, Ret} ->
+                                                               {leaf, Leaf#{type => Type}, Ret}
+                                                       end;
                                                    ({leaf, L}) ->
                                                        case L of
                                                            #{type := Type} -> Existing(L);
@@ -218,7 +290,7 @@ update_generic(State=#state{tree=Tree}, Parts, Type, Initial, Existing) ->
                                                        end
                                                end)).
 
-% same as lookup, but turn durectory and nothing results into errors
+% same as lookup, but turn directory and nothing results into errors
 lookup_node(Tree, Path) ->
     case eshetsrv_tree:lookup(Tree, Path) of
         {leaf, Leaf} -> {leaf, Leaf};
