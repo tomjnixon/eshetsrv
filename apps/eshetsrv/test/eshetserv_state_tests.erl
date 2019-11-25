@@ -119,11 +119,10 @@ register_state(Pid) ->
     ?assertEqual(ok,
                  eshetsrv_state:state_changed(Pid, <<"/foo">>, Self, some_state)),
     ok = receive
-        {'$gen_cast', {state_changed, <<"/foo">>, {known, some_state}}} ->
-            ok
-    after
-        10000 -> timeout
-    end.
+             {'$gen_cast', {state_changed, <<"/foo">>, {known, some_state}}} -> ok
+         after
+             100 -> timeout
+         end.
 
 observe_before_register_state(Pid) ->
     Self = self(),
@@ -139,7 +138,7 @@ observe_before_register_state(Pid) ->
         {'$gen_cast', {state_changed, <<"/foo">>, {known, some_state}}} ->
             ok
     after
-        10000 -> timeout
+        100 -> timeout
     end.
 
 
@@ -147,9 +146,11 @@ observe_before_register_state(Pid) ->
 link_test_() ->
     [
      {"register then exit immediately",
-      ?setup(fun register_exit/1)},
+      ?setup({with, [fun register_exit/1]})},
      {"register, check, then exit",
-      ?setup(fun register_check_exit/1)}
+      ?setup({with, [fun register_check_exit/1]})},
+     {"state",
+      ?setup({with, [fun link_state/1]})}
     ].
 
 register_exit(Pid) ->
@@ -175,3 +176,39 @@ register_check_exit(Pid) ->
             timer:sleep(50),
             ?_assertEqual({error,path_not_found}, eshetsrv_state:lookup(Pid, action_owner, <<"/foo">>))
     end.
+
+
+link_state(Pid) ->
+    Self = self(),
+    F = fun () ->
+                eshetsrv_state:register(Pid, state_owner, <<"/foo">>, self()),
+                eshetsrv_state:state_changed(Pid, <<"/foo">>, self(), some_state),
+                Self ! setup_done,
+                receive
+                    exit -> exit
+                end
+
+        end,
+    {TestPid, MonitorRef} = spawn_monitor(F),
+
+    ok = receive
+             setup_done -> ok
+         after
+             100 -> timeout
+         end,
+
+    ?assertEqual({ok, {known, some_state}},
+                 eshetsrv_state:register(Pid, state_observer, <<"/foo">>, self())),
+
+    TestPid ! exit,
+
+    ok = receive
+             {_Tag, MonitorRef, _Type, _Object, _Info} ->
+                 receive
+                     {'$gen_cast', {state_changed, _P, unknown}} -> ok
+                 after
+                     100 -> state_changed_timeout
+                 end
+         after
+             100 -> monitor_timeout
+         end.

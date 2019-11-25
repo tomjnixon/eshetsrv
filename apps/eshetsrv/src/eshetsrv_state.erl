@@ -191,9 +191,9 @@ handle_call({state_changed, Path, Pid, St}, _From, State=#state{tree=Tree}) ->
                     ({leaf, L=#{type := state}}) -> 
                         case L of
                             #{owner := Pid, observers := Observers} ->
-                                [gen_server:cast(Observer, {state_changed, Path, {known, St}})
-                                 || Observer <- sets:to_list(Observers)],
-                                {leaf, L#{state => {known, St}}};
+                                NewState = {known, St},
+                                ok = send_state_changed(Observers, Path, NewState),
+                                {leaf, L#{state => NewState}};
                             #{owner := _} ->
                                 {error, not_owner}
                         end;
@@ -238,20 +238,20 @@ deregister_from_node(_Path, V=#{type := event, owner := Owner, listeners := List
         _ -> {leaf, V#{owner => NewOwner, listeners => NewListeners}}
     end;
 
-deregister_from_node(_Path, V=#{type := state,
+deregister_from_node(Path, V=#{type := state,
                                owner := Owner,
                                state := S,
                                observers := Observers}, Pid) ->
     {NewOwner, NewState} = case {Owner, S} of
-                             {Pid, {known, _}} ->
-                                 % send message
-                                 {none, unknown};
-                             {Pid, unknown} ->
-                                 % already unknown, no message
-                                 {none, unknown};
-                             {_, _} ->
-                                 Owner, S
-                         end,
+                               {Pid, {known, _}} ->
+                                   ok = send_state_changed(Observers, eshet:path_unsplit(Path), unknown),
+                                   {none, unknown};
+                               {Pid, unknown} ->
+                                   % already unknown, no message
+                                   {none, unknown};
+                               {_, _} ->
+                                   {Owner, S}
+                           end,
 
     NewObservers = sets:del_element(Pid, Observers),
 
@@ -322,3 +322,8 @@ lookup_node_type(Tree, Path, Type) ->
         {leaf, _} -> {error, path_is_wrong_type};
         {error, E} -> {error, E}
     end.
+
+send_state_changed(Observers, Path, State) ->
+    [gen_server:cast(Observer, {state_changed, Path, State})
+     || Observer <- sets:to_list(Observers)],
+    ok.
