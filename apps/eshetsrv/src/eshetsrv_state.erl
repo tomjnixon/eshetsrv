@@ -238,11 +238,27 @@ deregister_from_node(_Path, V=#{type := event, owner := Owner, listeners := List
         _ -> {leaf, V#{owner => NewOwner, listeners => NewListeners}}
     end;
 
-% XXX: implement this
-deregister_from_node(_Path, _V=#{type := state,
-                                owner := _Owner,
-                                state := _State,
-                                observers := _Observers}, _Pid) -> nothing.
+deregister_from_node(_Path, V=#{type := state,
+                               owner := Owner,
+                               state := S,
+                               observers := Observers}, Pid) ->
+    {NewOwner, NewState} = case {Owner, S} of
+                             {Pid, {known, _}} ->
+                                 % send message
+                                 {none, unknown};
+                             {Pid, unknown} ->
+                                 % already unknown, no message
+                                 {none, unknown};
+                             {_, _} ->
+                                 Owner, S
+                         end,
+
+    NewObservers = sets:del_element(Pid, Observers),
+
+    case {NewOwner, sets:is_empty(NewObservers)} of
+        {none, true} -> nothing;
+        _ -> {leaf, V#{owner => NewOwner, observers => NewObservers, state => NewState}}
+    end.
 
 
 deregister(Pid, State=#state{tree=Tree}) ->
