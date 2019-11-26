@@ -5,7 +5,7 @@
 
 -export([action_register/2, action_call/3]).
 -export([prop_register/2, prop_set/3, prop_get/2]).
--export([event_register/2, event_dispatch/3, event_listen/2]).
+-export([event_register/2, event_emit/3, event_listen/2]).
 
 
 path_valid(Path) ->
@@ -24,62 +24,65 @@ path_unsplit(Parts) ->
 
 
 action_register(Srv, Path) ->
-    eshetsrv_state:register(Srv, Path, action_owner, self()).
+    eshetsrv_state:register(Srv, action_owner, Path, self()).
 
 
 action_call(Srv, Path, Args) ->
-    case eshetsrv_state:lookup(Srv, Path, action_owner) of
-        [Owner] ->
-            try
-                gen_server:call(Owner, {action_call, Path, Args})
-            catch
-                {noproc, _} -> {error, no_such_action}
-            end;
-        [] ->
-            {error, no_such_action}
+    case eshetsrv_state:lookup(Srv, action_owner, Path) of
+        {ok, Owner} ->
+            try_gen_call(Owner, {action_call, Path, Args});
+        {error, E} ->
+            {error, E}
     end.
 
 
 prop_register(Srv, Path) ->
-    eshetsrv_state:register(Srv, Path, prop_owner, self()).
+    eshetsrv_state:register(Srv, prop_owner, Path, self()).
 
 
 prop_set(Srv, Path, Value) ->
-    case eshetsrv_state:lookup(Srv, Path, prop_owner) of
-        [Owner] ->
-            try
-                gen_server:call(Owner, {prop_set, Path, Value})
-            catch
-                {noproc, _} -> {error, no_such_prop}
-            end;
-        [] ->
-            {error, no_such_prop}
+    case eshetsrv_state:lookup(Srv, prop_owner, Path) of
+        {ok, Owner} ->
+            try_gen_call(Owner, {prop_set, Path, Value});
+        {error, E} ->
+            {error, E}
     end.
 
 
 prop_get(Srv, Path) ->
-    case eshetsrv_state:lookup(Srv, Path, prop_owner) of
-        [Owner] ->
-            try
-                gen_server:call(Owner, {prop_get, Path})
-            catch
-                {noproc, _} -> {error, no_such_prop}
-            end;
-        [] ->
-            {error, no_such_prop}
+    case eshetsrv_state:lookup(Srv, prop_owner, Path) of
+        {ok, Owner} ->
+            try_gen_call(Owner, {prop_get, Path});
+        {error, E} ->
+            {error, E}
     end.
 
 
 event_register(Srv, Path) ->
-    eshetsrv_state:register(Srv, Path, event_owner, self()).
+    eshetsrv_state:register(Srv, event_owner, Path, self()).
 
 
-event_dispatch(Srv, Path, Args) ->
-    % XXX: check owner; check that it's actually an event...
-    Listeners = eshetsrv_state:lookup(Srv, Path, event_listener),
-    [gen_server:cast(Listener, {event_notify, Path, Args})
-     || Listener <- Listeners].
+event_emit(Srv, Path, Args) ->
+    % XXX: check owner?
+    case eshetsrv_state:lookup(Srv, event_listeners, Path) of
+        {ok, Listeners} ->
+            [gen_server:cast(Listener, {event_notify, Path, Args})
+             || Listener <- Listeners],
+            ok;
+        {error, E} -> {error, E}
+    end.
 
 
 event_listen(Srv, Path) ->
-    eshetsrv_state:register(Srv, Path, event_listener, self()).
+    eshetsrv_state:register(Srv, event_listener, Path, self()).
+
+
+% internal
+
+
+try_gen_call(Pid, Arg) ->
+    try
+        gen_server:call(Pid, Arg)
+    catch
+        {noproc, _} -> {error, no_such_node}
+    end.
