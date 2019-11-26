@@ -30,6 +30,12 @@ insert_subdir_test() ->
 
 insert_existing_subdir_test() ->
     {ok, T} = eshetsrv_tree:insert(example(), [b, e], f),
+    ?assertEqual(#{a=>{leaf, leaf_a},
+                   b=>#{
+                     c=>{leaf, leaf_c},
+                     d=>{leaf, leaf_d},
+                     e => {leaf, f}}},
+                 T),
     {leaf, f} = eshetsrv_tree:lookup(T, [b, e]).
 
 insert_errors_test() ->

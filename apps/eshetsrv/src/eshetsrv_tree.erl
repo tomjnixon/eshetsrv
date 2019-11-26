@@ -52,7 +52,7 @@ insert(Tree, Path, Value) ->
                 #{Leaf := _} ->
                     {error, path_is_directory};
                 #{} ->
-                    {ok, #{Leaf => {leaf, Value}}}
+                    {ok, Tree#{Leaf => {leaf, Value}}}
             end;
         [Head | Tail] ->
             case Tree of
@@ -81,11 +81,11 @@ put(Tree, Path, Value) ->
         [Leaf] ->
             case Tree of
                 #{Leaf := {leaf, _Value}} ->
-                    {ok, #{Leaf => {leaf, Value}}};
+                    {ok, Tree#{Leaf => {leaf, Value}}};
                 #{Leaf := _} ->
                     {error, path_is_directory};
                 #{} ->
-                    {ok, #{Leaf => {leaf, Value}}}
+                    {ok, Tree#{Leaf => {leaf, Value}}}
             end;
         [Head | Tail] ->
             case Tree of
