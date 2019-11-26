@@ -6,6 +6,7 @@
 -export([action_register/2, action_call/3]).
 -export([prop_register/2, prop_set/3, prop_get/2]).
 -export([event_register/2, event_emit/3, event_listen/2]).
+-export([state_register/2, state_changed/3, state_unknown/2, state_observe/2]).
 
 
 path_valid(Path) ->
@@ -75,6 +76,22 @@ event_emit(Srv, Path, Args) ->
 
 event_listen(Srv, Path) ->
     eshetsrv_state:register(Srv, event_listener, Path, self()).
+
+
+state_register(Srv, Path) ->
+    eshetsrv_state:register(Srv, state_owner, Path, self()).
+
+
+state_changed(Srv, Path, NewState) ->
+    eshetsrv_state:state_changed(Srv, Path, self(), {known, NewState}).
+
+
+state_unknown(Srv, Path) ->
+    eshetsrv_state:state_changed(Srv, Path, self(), unknown).
+
+
+state_observe(Srv, Path) ->
+    eshetsrv_state:register(Srv, state_observer, Path, self()).
 
 
 % internal

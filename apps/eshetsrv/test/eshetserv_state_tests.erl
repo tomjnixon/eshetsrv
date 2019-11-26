@@ -117,7 +117,7 @@ register_state(Pid) ->
                  eshetsrv_state:register(Pid, state_observer, <<"/foo">>, Self)),
 
     ?assertEqual(ok,
-                 eshetsrv_state:state_changed(Pid, <<"/foo">>, Self, some_state)),
+                 eshetsrv_state:state_changed(Pid, <<"/foo">>, Self, {known, some_state})),
     ok = receive
              {'$gen_cast', {state_changed, <<"/foo">>, {known, some_state}}} -> ok
          after
@@ -133,7 +133,7 @@ observe_before_register_state(Pid) ->
                  eshetsrv_state:register(Pid, state_owner, <<"/foo">>, Self)),
 
     ?assertEqual(ok,
-                 eshetsrv_state:state_changed(Pid, <<"/foo">>, Self, some_state)),
+                 eshetsrv_state:state_changed(Pid, <<"/foo">>, Self, {known, some_state})),
     ok = receive
         {'$gen_cast', {state_changed, <<"/foo">>, {known, some_state}}} ->
             ok
@@ -182,7 +182,7 @@ link_state(Pid) ->
     Self = self(),
     F = fun () ->
                 eshetsrv_state:register(Pid, state_owner, <<"/foo">>, self()),
-                eshetsrv_state:state_changed(Pid, <<"/foo">>, self(), some_state),
+                eshetsrv_state:state_changed(Pid, <<"/foo">>, self(), {known, some_state}),
                 Self ! setup_done,
                 receive
                     exit -> exit

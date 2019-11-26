@@ -38,8 +38,8 @@ register(Srv, Type, Path, Pid) ->
 lookup(Srv, Type, Path) ->
     gen_server:call(Srv, {lookup, Type, Path}).
 
-state_changed(Srv, Path, Pid, State) ->
-    gen_server:call(Srv, {state_changed, Path, Pid, State}).
+state_changed(Srv, Path, Pid, NewState) ->
+    gen_server:call(Srv, {state_changed, Path, Pid, NewState}).
 
 %% gen_server.
 
@@ -179,7 +179,7 @@ handle_call({register, state_observer, Path, Pid}, _From, State) ->
               end)
     end;
 
-handle_call({state_changed, Path, Pid, St}, _From, State=#state{tree=Tree}) ->
+handle_call({state_changed, Path, Pid, NewState}, _From, State=#state{tree=Tree}) ->
     case check(Path, Pid) of
         {error, E} -> {reply, {error, E}, State};
         {ok, Parts} ->
@@ -191,7 +191,6 @@ handle_call({state_changed, Path, Pid, St}, _From, State=#state{tree=Tree}) ->
                     ({leaf, L=#{type := state}}) -> 
                         case L of
                             #{owner := Pid, observers := Observers} ->
-                                NewState = {known, St},
                                 ok = send_state_changed(Observers, Path, NewState),
                                 {leaf, L#{state => NewState}};
                             #{owner := _} ->
