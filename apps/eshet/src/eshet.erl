@@ -4,9 +4,10 @@
 -export([path_split/1, path_unsplit/1]).
 
 -export([action_register/2, action_call/3]).
--export([prop_register/2, prop_set/3, prop_get/2]).
+-export([prop_register/2]).
 -export([event_register/2, event_emit/3, event_listen/2]).
 -export([state_register/2, state_changed/3, state_unknown/2, state_observe/2]).
+-export([set/3, get/2]).
 
 
 path_valid(Path) ->
@@ -41,19 +42,25 @@ prop_register(Srv, Path) ->
     eshetsrv_state:register(Srv, prop_owner, Path, self()).
 
 
-prop_set(Srv, Path, Value) ->
-    case eshetsrv_state:lookup(Srv, prop_owner, Path) of
-        {ok, Owner} ->
+set(Srv, Path, Value) ->
+    case eshetsrv_state:lookup(Srv, prop_state_owner, Path) of
+        {ok, prop, Owner} ->
             try_gen_call(Owner, {prop_set, Path, Value});
+        {ok, state, none} ->
+            {error, no_owner};
+        {ok, state, Owner} ->
+            try_gen_call(Owner, {state_set, Path, Value});
         {error, E} ->
             {error, E}
     end.
 
 
-prop_get(Srv, Path) ->
-    case eshetsrv_state:lookup(Srv, prop_owner, Path) of
-        {ok, Owner} ->
+get(Srv, Path) ->
+    case eshetsrv_state:lookup(Srv, prop_state_owner, Path) of
+        {ok, prop, Owner} ->
             try_gen_call(Owner, {prop_get, Path});
+        {ok, state, _Owner} ->
+            try_gen_call(Srv, {state_get, Path});
         {error, E} ->
             {error, E}
     end.

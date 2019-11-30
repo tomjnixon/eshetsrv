@@ -201,6 +201,30 @@ handle_call({state_changed, Path, Pid, NewState}, _From, State=#state{tree=Tree}
                 end))
     end;
 
+handle_call({state_get, Path}, _From, State=#state{tree=Tree}) ->
+    case check(Path) of
+        {error, E} -> {reply, {error, E}, State};
+        {ok, Parts} ->
+            case lookup_node_type(Tree, Parts, state) of
+                {leaf, #{state := S}} -> {reply, {ok, S}, State};
+                {error, E} -> {reply, {error, E}, State}
+            end
+    end;
+
+% props and states
+
+handle_call({lookup, prop_state_owner, Path}, _From, State=#state{tree=Tree}) ->
+    case check(Path) of
+        {error, E} -> {reply, {error, E}, State};
+        {ok, Parts} ->
+            case lookup_node(Tree, Parts) of
+                {leaf, #{type := prop, owner := Pid}} -> {reply, {ok, prop, Pid}, State};
+                {leaf, #{type := state, owner := Pid}} -> {reply, {ok, state, Pid}, State};
+                {leaf, #{type := _}} -> {reply, {error, path_is_wrong_type}, State};
+                {error, E} -> {reply, {error, E}, State}
+            end
+    end;
+
 handle_call(_Request, _From, State) ->
     {reply, ignored, State}.
 

@@ -30,6 +30,7 @@ init([Server]) ->
     ok = eshet:action_register(Server, <<"/action">>),
     ok = eshet:prop_register(Server, <<"/prop">>),
     ok = eshet:event_listen(Server, <<"/event">>),
+    ok = eshet:state_register(Server, <<"/server_state">>),
     {ok, #state{server=Server}}.
 
 handle_call({set_test_client, Client}, _From, State) ->
@@ -47,6 +48,11 @@ handle_call({prop_get, <<"/prop">>}, _From, State=#state{prop_value=Value}) ->
 handle_call(observe_state, _From, State=#state{server=Server}) ->
     Ret = eshet:state_observe(Server, <<"/state">>),
     {reply, Ret, State};
+
+handle_call({state_set, <<"/server_state">>, NewState},
+            _From, State=#state{server=Server}) ->
+    ok = eshet:state_changed(Server, <<"/server_state">>, NewState),
+    {reply, ok, State};
 
 handle_call(_Request, _From, State) ->
     {reply, ignored_in_test_server, State}.

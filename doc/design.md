@@ -73,6 +73,11 @@ the server to update the state. When a client starts observing a state, it
 receives the current version of the state, then `state_changed` messages
 whenever the state changes.
 
+The same `get` and `set` messages used with properties may be used to interact
+with states. `get` is implemented by returning the state stored on the server,
+while `set` is passed to the `owner` as with properties. `set` may be ignored
+to implement a read-only state.
+
 The state being stored on the server allows serialisation of the initial state
 and `state_changed` messages, without adding additional responsibilities for
 the `owner`.
