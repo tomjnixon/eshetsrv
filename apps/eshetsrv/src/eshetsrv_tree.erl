@@ -92,12 +92,12 @@ put(Tree, Path, Value) ->
                 #{Head := {leaf, _Value}} ->
                     {error, not_a_directory};
                 #{Head := Dir} ->
-                    case insert(Dir, Tail, Value) of
+                    case put(Dir, Tail, Value) of
                         {ok, NewDir} -> {ok, Tree#{Head => NewDir}};
                         Err -> Err
                     end;
                 #{} ->
-                    case insert(#{}, Tail, Value) of
+                    case put(#{}, Tail, Value) of
                         {ok, NewDir} -> {ok, Tree#{Head => NewDir}};
                         Err -> Err
                     end
