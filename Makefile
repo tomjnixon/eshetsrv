@@ -7,5 +7,6 @@ SP = 4
 DEPS = sync
 
 DIALYZER_OPTS = -Werror_handling -Wrace_conditions -Wunmatched_returns -Wunderspecs
+EUNIT_OPTS = verbose
 
 include erlang.mk
