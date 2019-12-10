@@ -22,7 +22,7 @@
     server,
     data=(<<>>),
     next_id=0,
-    wait=[]
+    wait=#{}
 }).
 
 start_link(Ref, Socket, Transport, Opts) ->
@@ -38,16 +38,34 @@ init(Ref, Socket, Transport, [Server]) ->
 init(State) ->
     {ok, State}.
 
-handle_call({action_call, Path, Args}, From,
-            State=#state{server=_Srv, next_id=Id, wait=Wait}) ->
+handle_call({action_call, Path, Args}, From, State) ->
+    {Id, State1} = wait_reply(State, From),
     ok = send_message({action_call, Id, Path, Args}, State),
-    {noreply, State#state{next_id=(Id + 1) band 16#ffff,
-                          wait=[{Id, From} | Wait]}};
+    {noreply, State1};
+
+handle_call({prop_get, Path}, From, State) ->
+    {Id, State1} = wait_reply(State, From),
+    ok = send_message({prop_get, Id, Path}, State),
+    {noreply, State1};
+
+handle_call({prop_set, Path, Value}, From, State) ->
+    {Id, State1} = wait_reply(State, From),
+    ok = send_message({prop_set, Id, Path, Value}, State),
+    {noreply, State1};
+
 handle_call(_Request, _From, State=#state{server=_Srv}) ->
     {reply, ignored, State}.
 
 handle_cast({send, Message}, State) ->
     send_message(Message, State),
+    {noreply, State};
+
+handle_cast({event_notify, Path, Value}, State) ->
+    ok = send_message({event_notify, Path, Value}, State),
+    {noreply, State};
+
+handle_cast({state_changed, Path, Value}, State) ->
+    ok = send_message({state_changed, Path, Value}, State),
     {noreply, State};
 
 handle_cast(_Msg, State) ->
@@ -61,6 +79,9 @@ handle_info({tcp, Socket, NewData},
     ok = Transport:setopts(Socket, [{active, once}]),
     {noreply, NewState};
 
+handle_info({tcp_closed, _Socket}, State) ->
+    {stop, normal, State};
+
 handle_info(_Msg, State) ->
     {noreply, State}.
 
@@ -71,6 +92,29 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 % impl
+
+wait_reply(State=#state{next_id=Id, wait=Wait}, From) ->
+    {Id,
+     State#state{next_id=(Id + 1) band 16#ffff,
+                 wait=Wait#{Id => From}}}.
+
+% replies with Result, which might be ok, {ok, Value} or {error, Value}.
+reply(Result, Id, State) ->
+    ok = case Result of
+             ok -> send_message({reply, Id, {ok, null}}, State);
+             {ok, Value} -> send_message({reply, Id, {ok, Value}}, State);
+             {error, Value} -> send_message({reply, Id, {error, Value}}, State)
+         end,
+    {ok, State}.
+
+% replies with Result, which might be {ok, {known, Value}}, {ok, unknown} or
+% {error, Value}.
+reply_state(Result, Id, State) ->
+    ok = case Result of
+             {ok, Value} -> send_message({reply_state, Id, {ok, Value}}, State);
+             {error, Value} -> send_message({reply, Id, {error, Value}}, State)
+         end,
+    {ok, State}.
 
 send_message(Message, #state{socket=Socket, transport=Transport}) ->
     {ok, Packed} = eshetnet_proto_impl:pack(Message),
@@ -88,18 +132,12 @@ handle_message({ping, Id}, State) ->
     {ok, State};
 
 handle_message({reply, Id, Response}, State=#state{wait=Wait}) ->
-    {[[{Id, From}]], NewWait} = proplists:split(Wait, [Id]),
+    {From, NewWait} = maps:take(Id, Wait),
     gen_server:reply(From, Response),
     {ok, State#state{wait=NewWait}};
 
 handle_message({action_register, Id, Path}, State=#state{server=Srv}) ->
-    case eshet:action_register(Srv, Path) of
-        ok ->
-            ok = send_message({reply, Id, {ok, null}}, State);
-        {error, Error} ->
-            ok = send_message({reply, Id, {error, Error}}, State)
-    end,
-    {ok, State};
+    reply(eshet:action_register(Srv, Path), Id, State);
 
 handle_message({action_call, Id, Path, Msg}, State=#state{server=Srv}) ->
     Self = self(),
@@ -107,4 +145,44 @@ handle_message({action_call, Id, Path, Msg}, State=#state{server=Srv}) ->
                        Result = eshet:action_call(Srv, Path, Msg),
                        gen_server:cast(Self, {send, {reply, Id, Result}})
                end),
-    {ok, State}.
+    {ok, State};
+
+handle_message({prop_register, Id, Path}, State=#state{server=Srv}) ->
+    reply(eshet:prop_register(Srv, Path), Id, State);
+
+handle_message({get, Id, Path}, State=#state{server=Srv}) ->
+    Self = self(),
+    spawn_link(fun () ->
+                       Result = eshet:get(Srv, Path),
+                       gen_server:cast(Self, {send, {reply, Id, Result}})
+               end),
+    {ok, State};
+
+handle_message({set, Id, Path, Msg}, State=#state{server=Srv}) ->
+    Self = self(),
+    spawn_link(fun () ->
+                       Result = eshet:set(Srv, Path, Msg),
+                       gen_server:cast(Self, {send, {reply, Id, Result}})
+               end),
+    {ok, State};
+
+handle_message({event_register, Id, Path}, State=#state{server=Srv}) ->
+    reply(eshet:event_register(Srv, Path), Id, State);
+
+handle_message({event_emit, Id, Path, Value}, State=#state{server=Srv}) ->
+    reply(eshet:event_emit(Srv, Path, Value), Id, State);
+
+handle_message({event_listen, Id, Path}, State=#state{server=Srv}) ->
+    reply(eshet:event_listen(Srv, Path), Id, State);
+
+handle_message({state_register, Id, Path}, State=#state{server=Srv}) ->
+    reply(eshet:state_register(Srv, Path), Id, State);
+
+handle_message({state_changed, Id, Path, Value}, State=#state{server=Srv}) ->
+    reply(eshet:state_changed(Srv, Path, Value), Id, State);
+
+handle_message({state_unknown, Id, Path}, State=#state{server=Srv}) ->
+    reply(eshet:state_unknown(Srv, Path), Id, State);
+
+handle_message({state_observe, Id, Path}, State=#state{server=Srv}) ->
+    reply_state(eshet:state_observe(Srv, Path), Id, State).

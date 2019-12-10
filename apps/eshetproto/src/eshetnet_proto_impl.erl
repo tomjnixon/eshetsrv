@@ -3,6 +3,12 @@
 -export([parse_payload/1]).
 -export([pack/1]).
 
+msgpack_pack(Value) ->
+    msgpack:pack(Value, [{pack_str, from_binary}]).
+
+msgpack_unpack(Msgpack) ->
+    msgpack:unpack(Msgpack, [{unpack_str, as_binary}]).
+
 parse_one(<<16#47, Len:16, Payload:Len/binary, Rest/binary>>) ->
     case parse_payload(Payload) of
         error -> error;
@@ -24,19 +30,40 @@ parse(Msg) ->
         error -> error
     end.
 
-parse_payload(<<16#01, Id:16, Msgpack/binary>>) ->
-    case msgpack:unpack(Msgpack) of
+parse_payload(<<16#01, Version:8>>) ->
+    {hello, Version};
+parse_payload(<<16#02, Version:8, ClientIDPack/binary>>) ->
+    case msgpack_unpack(ClientIDPack) of
+        {ok, ClientID} -> {hello_id, Version, ClientID};
+        _ -> error
+    end;
+
+parse_payload(<<16#03>>) ->
+    {hello};
+parse_payload(<<16#04, ClientIDPack/binary>>) ->
+    case msgpack_unpack(ClientIDPack) of
+        {ok, ClientID} -> {hello_id, ClientID};
+        _ -> error
+    end;
+
+parse_payload(<<16#05, Id:16, Msgpack/binary>>) ->
+    case msgpack_unpack(Msgpack) of
         {ok, Msg} -> {reply, Id, {ok, Msg}};
         _ -> error
     end;
-parse_payload(<<16#02, Id:16, Msgpack/binary>>) ->
-    case msgpack:unpack(Msgpack) of
+parse_payload(<<16#06, Id:16, Msgpack/binary>>) ->
+    case msgpack_unpack(Msgpack) of
         {ok, Msg} -> {reply, Id, {error, Msg}};
         _ -> error
     end;
 
-parse_payload(<<16#03, Id:16>>) ->
-    {ping, Id};
+parse_payload(<<16#07, Id:16, Msgpack/binary>>) ->
+    case msgpack_unpack(Msgpack) of
+        {ok, Msg} -> {reply_state, Id, {ok, {known, Msg}}};
+        _ -> error
+    end;
+parse_payload(<<16#08, Id:16>>) ->
+    {reply_state, Id, {ok, unknown}};
 
 parse_payload(<<16#10, Id:16, Rest/binary>>) ->
     case binary:split(Rest, <<0>>) of
@@ -47,7 +74,7 @@ parse_payload(<<16#10, Id:16, Rest/binary>>) ->
 parse_payload(<<16#11, Id:16, Rest/binary>>) ->
     case binary:split(Rest, <<0>>) of
         [Path, Msgpack] ->
-            case msgpack:unpack(Msgpack) of
+            case msgpack_unpack(Msgpack) of
                 {ok, Msg} -> {action_call, Id, Path, Msg};
                 _ -> error
             end;
@@ -69,7 +96,7 @@ parse_payload(<<16#21, Id:16, Rest/binary>>) ->
 parse_payload(<<16#22, Id:16, Rest/binary>>) ->
     case binary:split(Rest, <<0>>) of
         [Path, Msgpack] ->
-            case msgpack:unpack(Msgpack) of
+            case msgpack_unpack(Msgpack) of
                 {ok, Msg} -> {prop_set, Id, Path, Msg};
                 _ -> error
             end;
@@ -85,33 +112,138 @@ parse_payload(<<16#30, Id:16, Rest/binary>>) ->
 parse_payload(<<16#31, Id:16, Rest/binary>>) ->
     case binary:split(Rest, <<0>>) of
         [Path, Msgpack] ->
-            case msgpack:unpack(Msgpack) of
-                {ok, Msg} -> {event_dispatch, Id, Path, Msg};
+            case msgpack_unpack(Msgpack) of
+                {ok, Msg} -> {event_emit, Id, Path, Msg};
                 _ -> error
             end;
         _ -> error
     end;
 
+parse_payload(<<16#32, Id:16, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, <<>>] -> {event_listen, Id, Path};
+        _ -> error
+    end;
+
+parse_payload(<<16#33, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, Msgpack] ->
+            case msgpack_unpack(Msgpack) of
+                {ok, Msg} -> {event_notify, Path, Msg};
+                _ -> error
+            end;
+        _ -> error
+    end;
+
+parse_payload(<<16#40, Id:16, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, <<>>] -> {state_register, Id, Path};
+        _ -> error
+    end;
+
+parse_payload(<<16#41, Id:16, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, Msgpack] ->
+            case msgpack_unpack(Msgpack) of
+                {ok, Msg} -> {state_changed, Id, Path, Msg};
+                _ -> error
+            end;
+        _ -> error
+    end;
+
+parse_payload(<<16#42, Id:16, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, <<>>] -> {state_unknown, Id, Path};
+        _ -> error
+    end;
+
+parse_payload(<<16#43, Id:16, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, <<>>] -> {state_observe, Id, Path};
+        _ -> error
+    end;
+
+parse_payload(<<16#44, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, Msgpack] ->
+            case msgpack_unpack(Msgpack) of
+                {ok, Msg} -> {state_changed, Path, {known, Msg}};
+                _ -> error
+            end;
+        _ -> error
+    end;
+
+parse_payload(<<16#45, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, <<>>] -> {state_changed, Path, unknown};
+        _ -> error
+    end;
+
 parse_payload(_) -> error.
 
+% client to server
+pack_payload({hello, Version}) ->
+    <<16#01, Version:8>>;
+pack_payload({hello_id, Version, ClientID}) ->
+    <<16#02, Version:8, (msgpack_pack(ClientID))/binary>>;
+% server to client
+pack_payload({hello}) ->
+    <<16#03>>;
+pack_payload({hello_id, ClientID}) ->
+    <<16#04, (msgpack_pack(ClientID))/binary>>;
+% bidirectional
 pack_payload({reply, Id, {ok, Msg}}) ->
-    <<16#01, Id:16, (msgpack:pack(Msg))/binary>>;
+    <<16#05, Id:16, (msgpack_pack(Msg))/binary>>;
 pack_payload({reply, Id, {error, Msg}}) ->
-    <<16#02, Id:16, (msgpack:pack(Msg))/binary>>;
+    <<16#06, Id:16, (msgpack_pack(Msg))/binary>>;
+% server to client
+pack_payload({reply_state, Id, {ok, {known, Msg}}}) ->
+    <<16#07, Id:16, (msgpack_pack(Msg))/binary>>;
+pack_payload({reply_state, Id, {ok, unknown}}) ->
+    <<16#08, Id:16>>;
+% client to server
 pack_payload({action_register, Id, Path}) ->
     <<16#10, Id:16, Path/binary, 0>>;
+% bidirectional
 pack_payload({action_call, Id, Path, Msg}) ->
-    <<16#11, Id:16, Path/binary, 0, (msgpack:pack(Msg))/binary>>;
+    <<16#11, Id:16, Path/binary, 0, (msgpack_pack(Msg))/binary>>;
+% client to server
 pack_payload({prop_register, Id, Path}) ->
     <<16#20, Id:16, Path/binary, 0>>;
+% server to client
 pack_payload({prop_get, Id, Path}) ->
     <<16#21, Id:16, Path/binary, 0>>;
 pack_payload({prop_set, Id, Path, Msg}) ->
-    <<16#22, Id:16, Path/binary, 0, (msgpack:pack(Msg))/binary>>;
+    <<16#22, Id:16, Path/binary, 0, (msgpack_pack(Msg))/binary>>;
+% client to server
 pack_payload({event_register, Id, Path}) ->
     <<16#30, Id:16, Path/binary, 0>>;
-pack_payload({event_dispatch, Id, Path, Msg}) ->
-    <<16#31, Id:16, Path/binary, 0, (msgpack:pack(Msg))/binary>>.
+% client to server
+pack_payload({event_emit, Id, Path, Msg}) ->
+    <<16#31, Id:16, Path/binary, 0, (msgpack_pack(Msg))/binary>>;
+% client to server
+pack_payload({event_listen, Id, Path}) ->
+    <<16#32, Id:16, Path/binary, 0>>;
+% server to client
+pack_payload({event_notify, Path, Msg}) ->
+    <<16#33, Path/binary, 0, (msgpack_pack(Msg))/binary>>;
+% client to server
+pack_payload({state_register, Id, Path}) ->
+    <<16#40, Id:16, Path/binary, 0>>;
+% client to server
+pack_payload({state_changed, Id, Path, State}) ->
+    <<16#41, Id:16, Path/binary, 0, (msgpack_pack(State))/binary>>;
+% client to server
+pack_payload({state_unknown, Id, Path}) ->
+    <<16#42, Id:16, Path/binary, 0>>;
+% client to server
+pack_payload({state_observe, Id, Path}) ->
+    <<16#43, Id:16, Path/binary, 0>>;
+% server to client
+pack_payload({state_changed, Path, {known, State}}) ->
+    <<16#44, Path/binary, 0, (msgpack_pack(State))/binary>>;
+pack_payload({state_changed, Path, unknown}) ->
+    <<16#45, Path/binary, 0>>.
 
 pack(Payload) ->
     PackedPayload = pack_payload(Payload),
@@ -119,3 +251,38 @@ pack(Payload) ->
         Len when Len < 1 bsl 16 -> {ok, <<16#47, Len:16, PackedPayload/binary>>};
         _ -> {error, too_long}
     end.
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+pack_unpack_test() ->
+    Messages = [
+                {hello},
+                {hello, 1},
+                {hello_id, <<"foo">>},
+                {hello_id, 1, <<"foo">>},
+                {reply, 42, {ok, 5}},
+                {reply, 42, {error, 5}},
+                {reply_state, 42, {ok, {known, [<<"foo">>, 5]}}},
+                {reply_state, 42, {ok, unknown}},
+                {action_register, 42, <<"/path">>},
+                {action_call, 42, <<"/path">>, [<<"foo">>, 5]},
+                {prop_register, 42, <<"/path">>},
+                {prop_get, 42, <<"/path">>},
+                {prop_set, 42, <<"/path">>, [<<"foo">>, 5]},
+                {event_register, 42, <<"/path">>},
+                {event_emit, 42, <<"/path">>, [<<"foo">>, 5]},
+                {event_listen, 42, <<"/path">>},
+                {event_notify, <<"/path">>, [<<"foo">>, 5]},
+                {state_register, 42, <<"/path">>},
+                {state_changed, 42, <<"/path">>, [<<"foo">>, 5]},
+                {state_unknown, 42, <<"/path">>},
+                {state_observe, 42, <<"/path">>},
+                {state_changed, <<"/path">>, {known, [<<"foo">>, 5]}},
+                {state_changed, <<"/path">>, unknown}
+               ],
+
+    [?assertEqual(Message, parse_payload(pack_payload(Message)))
+     || Message <- Messages].
+
+-endif.
