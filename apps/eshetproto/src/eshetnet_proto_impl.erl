@@ -103,6 +103,22 @@ parse_payload(<<16#22, Id:16, Rest/binary>>) ->
         _ -> error
     end;
 
+parse_payload(<<16#23, Id:16, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, <<>>] -> {get, Id, Path};
+        _ -> error
+    end;
+
+parse_payload(<<16#24, Id:16, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, Msgpack] ->
+            case msgpack_unpack(Msgpack) of
+                {ok, Msg} -> {set, Id, Path, Msg};
+                _ -> error
+            end;
+        _ -> error
+    end;
+
 parse_payload(<<16#30, Id:16, Rest/binary>>) ->
     case binary:split(Rest, <<0>>) of
         [Path, <<>>] -> {event_register, Id, Path};
@@ -216,6 +232,11 @@ pack_payload({prop_get, Id, Path}) ->
 pack_payload({prop_set, Id, Path, Msg}) ->
     <<16#22, Id:16, Path/binary, 0, (msgpack_pack(Msg))/binary>>;
 % client to server
+pack_payload({get, Id, Path}) ->
+    <<16#23, Id:16, Path/binary, 0>>;
+pack_payload({set, Id, Path, Msg}) ->
+    <<16#24, Id:16, Path/binary, 0, (msgpack_pack(Msg))/binary>>;
+% client to server
 pack_payload({event_register, Id, Path}) ->
     <<16#30, Id:16, Path/binary, 0>>;
 % client to server
@@ -270,6 +291,8 @@ pack_unpack_test() ->
                 {prop_register, 42, <<"/path">>},
                 {prop_get, 42, <<"/path">>},
                 {prop_set, 42, <<"/path">>, [<<"foo">>, 5]},
+                {get, 42, <<"/path">>},
+                {set, 42, <<"/path">>, [<<"foo">>, 5]},
                 {event_register, 42, <<"/path">>},
                 {event_emit, 42, <<"/path">>, [<<"foo">>, 5]},
                 {event_listen, 42, <<"/path">>},
