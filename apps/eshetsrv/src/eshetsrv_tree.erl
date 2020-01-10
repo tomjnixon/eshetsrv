@@ -1,6 +1,7 @@
 -module(eshetsrv_tree).
 -export([new/0]).
 -export([lookup/2]).
+-export([list_dir/2]).
 -export([insert/3]).
 -export([remove/2]).
 -export([update/3]).
@@ -36,6 +37,23 @@ lookup(Tree, Path) ->
             end
     end.
 
+-spec list_dir(tree(), [any()]) ->
+    {ok, [{any(), dir | {leaf, any()}}]} | {error, not_a_directory}.
+list_dir(Tree, []) ->
+    {ok, [case Entry of
+              #{} -> {Name, dir};
+              {leaf, Leaf} -> {Name, {leaf, Leaf}}
+          end
+          || {Name, Entry} <- maps:to_list(Tree)]};
+list_dir(Tree, [Head | Tail]) ->
+    case Tree of
+        #{Head := {leaf, _Value}} ->
+            {error, not_a_directory};
+        #{Head := Dir} ->
+            list_dir(Dir, Tail);
+        #{} ->
+            {error, not_a_directory}
+    end.
 
 -spec insert(tree(), path(), any()) ->
     {ok, tree()}
