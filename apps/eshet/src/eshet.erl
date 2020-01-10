@@ -1,6 +1,6 @@
 -module(eshet).
 
--export([path_valid/1]).
+-export([path_valid/1, path_or_dir_valid/1]).
 -export([path_split/1, path_unsplit/1]).
 
 -export([action_register/2, action_call/3]).
@@ -12,6 +12,12 @@
 
 path_valid(Path) ->
     case re:run(Path, <<"^(/\\w+)+$">>) of 
+        {match, _} -> true;
+        nomatch -> false
+    end.
+
+path_or_dir_valid(Path) ->
+    case re:run(Path, <<"^(/\\w+)*/\\w*$">>) of
         {match, _} -> true;
         nomatch -> false
     end.

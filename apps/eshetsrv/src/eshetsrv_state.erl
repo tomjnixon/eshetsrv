@@ -225,6 +225,30 @@ handle_call({lookup, prop_state_owner, Path}, _From, State=#state{tree=Tree}) ->
             end
     end;
 
+% for ls
+
+handle_call({lookup, node, Path}, _From, State=#state{tree=Tree}) ->
+    case eshet:path_or_dir_valid(Path) of
+        false -> {reply, {error, invalid_path}, State};
+        true ->
+            Parts = eshet:path_split(Path),
+            Reply = case eshetsrv_tree:lookup(Tree, Parts) of
+                {leaf, #{type := Type}} ->
+                    {ok, Type};
+                directory ->
+                    {ok, Entries} = eshetsrv_tree:list_dir(Tree, Parts),
+                    EntriesFmt = [{Name, case Entry of
+                                             dir -> dir;
+                                             {leaf, #{type := Type}} -> Type
+                                         end}
+                                  || {Name, Entry} <- Entries],
+                    {ok, {dir, EntriesFmt}};
+                nothing -> {error, path_not_found};
+                {error, E} -> {error, E}
+            end,
+            {reply, Reply, State}
+    end;
+
 handle_call(_Request, _From, State) ->
     {reply, ignored, State}.
 
