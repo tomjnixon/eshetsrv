@@ -3,8 +3,17 @@
 -export([parse_payload/1]).
 -export([pack/1]).
 
+% replace:
+% - atoms with binaries (which are packed as strings)
+% - tuples with lists
+format_msgpack(X) when is_atom(X) -> erlang:atom_to_binary(X, utf8);
+format_msgpack(X) when is_list(X) -> [format_msgpack(Item) || Item <- X];
+format_msgpack(X) when is_tuple(X) -> format_msgpack(erlang:tuple_to_list(X));
+format_msgpack(X) when is_map(X) -> maps:from_list(format_msgpack(maps:to_list(X)));
+format_msgpack(X) -> X.
+
 msgpack_pack(Value) ->
-    msgpack:pack(Value, [{pack_str, from_binary}]).
+    msgpack:pack(format_msgpack(Value), [{pack_str, from_binary}]).
 
 msgpack_unpack(Msgpack) ->
     msgpack:unpack(Msgpack, [{unpack_str, as_binary}]).
