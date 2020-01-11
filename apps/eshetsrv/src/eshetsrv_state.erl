@@ -188,7 +188,7 @@ handle_call({state_changed, Path, Pid, NewState}, _From, State=#state{tree=Tree}
               eshetsrv_tree:update(
                 Tree, Parts,
                 fun (nothing) -> {error, no_such_node};
-                    ({leaf, L=#{type := state}}) -> 
+                    ({leaf, L=#{type := state}}) ->
                         case L of
                             #{owner := Pid, observers := Observers} ->
                                 ok = send_state_changed(Observers, Path, NewState),

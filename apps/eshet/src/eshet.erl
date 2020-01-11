@@ -11,7 +11,7 @@
 
 
 path_valid(Path) ->
-    case re:run(Path, <<"^(/\\w+)+$">>) of 
+    case re:run(Path, <<"^(/\\w+)+$">>) of
         {match, _} -> true;
         nomatch -> false
     end.
