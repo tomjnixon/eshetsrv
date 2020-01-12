@@ -8,5 +8,10 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    Procs = [],
+    Procs = [
+             #{id => eshetnet_registry,
+               start => {eshetnet_registry, start_link, [eshetsrv_state]},
+               modules => [eshetnet_registry]
+              }
+            ],
     {ok, {{one_for_one, 1, 5}, Procs}}.

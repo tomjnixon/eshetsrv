@@ -249,6 +249,9 @@ handle_call({lookup, node, Path}, _From, State=#state{tree=Tree}) ->
             {reply, Reply, State}
     end;
 
+handle_call({deregister, Pid}, _From, State) ->
+    {reply, ok, deregister(Pid, State)};
+
 handle_call(_Request, _From, State) ->
     {reply, ignored, State}.
 
