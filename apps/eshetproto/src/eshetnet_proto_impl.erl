@@ -9,7 +9,9 @@
 format_msgpack(X) when is_atom(X) -> erlang:atom_to_binary(X, utf8);
 format_msgpack(X) when is_list(X) -> [format_msgpack(Item) || Item <- X];
 format_msgpack(X) when is_tuple(X) -> format_msgpack(erlang:tuple_to_list(X));
-format_msgpack(X) when is_map(X) -> maps:from_list(format_msgpack(maps:to_list(X)));
+format_msgpack(X) when is_map(X) ->
+    maps:from_list([{format_msgpack(Key), format_msgpack(Value)}
+                    || {Key, Value} <- maps:to_list(X)]);
 format_msgpack(X) -> X.
 
 msgpack_pack(Value) ->
