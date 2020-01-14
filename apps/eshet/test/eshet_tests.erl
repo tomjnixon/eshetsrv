@@ -49,10 +49,10 @@ state({Server, Client}) ->
     ok = gen_server:call(Client, {set_test_client, self()}),
 
     {ok, unknown} = gen_server:call(Client, observe_state),
-    {ok, unknown} = eshet:get(Server, <<"/state">>),
+    {error, state_unknown} = eshet:get(Server, <<"/state">>),
 
     ok = eshet:state_register(Server, <<"/state">>),
-    {ok, unknown} = eshet:get(Server, <<"/state">>),
+    {error, state_unknown} = eshet:get(Server, <<"/state">>),
 
     ok = eshet:state_changed(Server, <<"/state">>, new_state),
     ok = receive
@@ -60,7 +60,7 @@ state({Server, Client}) ->
          after
              100 -> timeout
          end,
-    {ok, {known, new_state}} = eshet:get(Server, <<"/state">>).
+    {ok, new_state} = eshet:get(Server, <<"/state">>).
 
 state_register_before({Server, Client}) ->
     ok = gen_server:call(Client, {set_test_client, self()}),
@@ -76,4 +76,4 @@ state_register_before({Server, Client}) ->
 
 state_set({Server, _Client}) ->
     ok = eshet:set(Server, <<"/server_state">>, server_state),
-    {ok, {known, server_state}} = eshet:get(Server, <<"/server_state">>).
+    {ok, server_state} = eshet:get(Server, <<"/server_state">>).

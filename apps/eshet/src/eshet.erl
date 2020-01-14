@@ -66,7 +66,11 @@ get(Srv, Path) ->
         {ok, prop, Owner} ->
             try_gen_call(Owner, {prop_get, Path});
         {ok, state, _Owner} ->
-            try_gen_call(Srv, {state_get, Path});
+            case try_gen_call(Srv, {state_get, Path}) of
+                {ok, {known, Value}} -> {ok, Value};
+                {ok, unknown} -> {error, state_unknown};
+                Error -> Error
+            end;
         {error, E} ->
             {error, E}
     end.
