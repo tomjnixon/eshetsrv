@@ -28,6 +28,7 @@ start_link(Server) ->
 
 init([Server]) ->
     ok = eshet:action_register(Server, <<"/action">>),
+    ok = eshet:action_register(Server, <<"/action_error">>),
     ok = eshet:prop_register(Server, <<"/prop">>),
     ok = eshet:event_listen(Server, <<"/event">>),
     ok = eshet:state_register(Server, <<"/server_state">>),
@@ -38,6 +39,9 @@ handle_call({set_test_client, Client}, _From, State) ->
 
 handle_call({action_call, <<"/action">>, []}, _From, State) ->
     {reply, {ok, action_result}, State};
+
+handle_call({action_call, <<"/action_error">>, []}, _From, _State) ->
+    exit(normal);
 
 handle_call({prop_set, <<"/prop">>, NewValue}, _From, State) ->
     {reply, ok, State#state{prop_value=NewValue}};

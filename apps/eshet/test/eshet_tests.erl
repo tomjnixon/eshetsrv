@@ -16,6 +16,8 @@ eshet_test_() ->
     [
      {"action",
       ?setup({with, [fun action/1]})},
+     {"action_error",
+      fun action_error/0},
      {"prop",
       ?setup({with, [fun prop/1]})},
      {"event",
@@ -30,6 +32,16 @@ eshet_test_() ->
 
 action({Server, _Client}) ->
     {ok, action_result} = eshet:action_call(Server, <<"/action">>, []).
+
+action_error() ->
+    {ok, Server} = eshetsrv_state:start_link(),
+    {ok, Client} = eshet_test_server:start_link(Server),
+    unlink(Client),
+
+    % check that if the other client exits, we get a reasonable response
+    {error, client_exited} = eshet:action_call(Server, <<"/action_error">>, []),
+
+    ok = gen_server:stop(Server).
 
 prop({Server, _Client}) ->
     ok = eshet:set(Server, <<"/prop">>, prop_value),

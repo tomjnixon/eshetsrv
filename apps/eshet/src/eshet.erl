@@ -118,5 +118,8 @@ try_gen_call(Pid, Arg) ->
     try
         gen_server:call(Pid, Arg)
     catch
-        {noproc, _} -> {error, no_such_node}
+        throw:{noproc, _} -> {error, no_such_node};
+        exit:timeout -> {error, timeout};
+        exit:{nodedown, _Node} -> {error, node_down};
+        exit:_Reason -> {error, client_exited}
     end.
