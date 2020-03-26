@@ -4,8 +4,11 @@
 -export([pack/1]).
 
 % replace:
-% - atoms with binaries (which are packed as strings)
+% - unrecognised atoms with binaries (which are packed as strings)
 % - tuples with lists
+format_msgpack(true) -> true;
+format_msgpack(false) -> false;
+format_msgpack(null) -> null;
 format_msgpack(X) when is_atom(X) -> erlang:atom_to_binary(X, utf8);
 format_msgpack(X) when is_list(X) -> [format_msgpack(Item) || Item <- X];
 format_msgpack(X) when is_tuple(X) -> format_msgpack(erlang:tuple_to_list(X));
