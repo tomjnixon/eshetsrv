@@ -114,12 +114,14 @@ state_observe(Srv, Path) ->
 % internal
 
 
-try_gen_call(Pid, Arg) ->
+try_gen_call(Pid, Arg, Timeout) ->
     try
-        gen_server:call(Pid, Arg)
+        gen_server:call(Pid, Arg, Timeout)
     catch
         throw:{noproc, _} -> {error, no_such_node};
         exit:timeout -> {error, timeout};
         exit:{nodedown, _Node} -> {error, node_down};
         exit:_Reason -> {error, client_exited}
     end.
+
+try_gen_call(Pid, Arg) -> try_gen_call(Pid, Arg, infinity).
