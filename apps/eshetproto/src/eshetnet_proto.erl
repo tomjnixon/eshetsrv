@@ -82,6 +82,9 @@ handle_info({tcp, Socket, NewData},
 handle_info({tcp_closed, _Socket}, State) ->
     {stop, normal, State};
 
+handle_info({tcp_error, _Socket, _Reason}, State) ->
+    {stop, normal, State};
+
 handle_info(_Msg, State) ->
     {noreply, State}.
 
