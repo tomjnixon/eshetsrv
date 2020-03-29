@@ -44,11 +44,11 @@ parse(Msg) ->
         error -> error
     end.
 
-parse_payload(<<16#01, Version:8>>) ->
-    {hello, Version};
-parse_payload(<<16#02, Version:8, ClientIDPack/binary>>) ->
+parse_payload(<<16#01, Version:8, TimeoutS:16>>) ->
+    {hello, Version, TimeoutS};
+parse_payload(<<16#02, Version:8, TimeoutS:16, ClientIDPack/binary>>) ->
     case msgpack_unpack(ClientIDPack) of
-        {ok, ClientID} -> {hello_id, Version, ClientID};
+        {ok, ClientID} -> {hello_id, Version, TimeoutS, ClientID};
         _ -> error
     end;
 
@@ -78,6 +78,9 @@ parse_payload(<<16#07, Id:16, Msgpack/binary>>) ->
     end;
 parse_payload(<<16#08, Id:16>>) ->
     {reply_state, Id, {ok, unknown}};
+
+parse_payload(<<16#09, Id:16>>) ->
+    {ping, Id};
 
 parse_payload(<<16#10, Id:16, Rest/binary>>) ->
     case binary:split(Rest, <<0>>) of
@@ -212,10 +215,10 @@ parse_payload(<<16#45, Rest/binary>>) ->
 parse_payload(_) -> error.
 
 % client to server
-pack_payload({hello, Version}) ->
-    <<16#01, Version:8>>;
-pack_payload({hello_id, Version, ClientID}) ->
-    <<16#02, Version:8, (msgpack_pack(ClientID))/binary>>;
+pack_payload({hello, Version, TimeoutS}) ->
+    <<16#01, Version:8, TimeoutS:16>>;
+pack_payload({hello_id, Version, TimeoutS, ClientID}) ->
+    <<16#02, Version:8, TimeoutS:16, (msgpack_pack(ClientID))/binary>>;
 % server to client
 pack_payload({hello}) ->
     <<16#03>>;
@@ -231,6 +234,9 @@ pack_payload({reply_state, Id, {ok, {known, Msg}}}) ->
     <<16#07, Id:16, (msgpack_pack(Msg))/binary>>;
 pack_payload({reply_state, Id, {ok, unknown}}) ->
     <<16#08, Id:16>>;
+% client to server
+pack_payload({ping, Id}) ->
+    <<16#09, Id:16>>;
 % client to server
 pack_payload({action_register, Id, Path}) ->
     <<16#10, Id:16, Path/binary, 0>>;
@@ -293,13 +299,14 @@ pack(Payload) ->
 pack_unpack_test() ->
     Messages = [
                 {hello},
-                {hello, 1},
+                {hello, 1, 30},
                 {hello_id, <<"foo">>},
-                {hello_id, 1, <<"foo">>},
+                {hello_id, 1, 30, <<"foo">>},
                 {reply, 42, {ok, 5}},
                 {reply, 42, {error, 5}},
                 {reply_state, 42, {ok, {known, [<<"foo">>, 5]}}},
                 {reply_state, 42, {ok, unknown}},
+                {ping, 42},
                 {action_register, 42, <<"/path">>},
                 {action_call, 42, <<"/path">>, [<<"foo">>, 5]},
                 {prop_register, 42, <<"/path">>},

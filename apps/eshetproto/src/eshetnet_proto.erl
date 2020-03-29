@@ -22,7 +22,9 @@
     server,
     data=(<<>>),
     next_id=0,
-    wait=#{}
+    wait=#{},
+    timeout_s=0,
+    timeout_ref=none
 }).
 
 start_link(Ref, Socket, Transport, Opts) ->
@@ -77,12 +79,17 @@ handle_info({tcp, Socket, NewData},
     {Messages, Rest} = eshetnet_proto_impl:parse(Data),
     {ok, NewState} = handle_messages(Messages, State#state{data=Rest}),
     ok = Transport:setopts(Socket, [{active, once}]),
-    {noreply, NewState};
+    % messages might have changed the idle timeout; resetting after handling
+    % messages makes this take effect
+    {noreply, reset_timeout(NewState)};
 
 handle_info({tcp_closed, _Socket}, State) ->
     {stop, normal, State};
 
 handle_info({tcp_error, _Socket, _Reason}, State) ->
+    {stop, normal, State};
+
+handle_info(timeout, State) ->
     {stop, normal, State};
 
 handle_info(_Msg, State) ->
@@ -123,6 +130,16 @@ send_message(Message, #state{socket=Socket, transport=Transport}) ->
     {ok, Packed} = eshetnet_proto_impl:pack(Message),
     Transport:send(Socket, Packed).
 
+reset_timeout(State=#state{timeout_ref=TRef, timeout_s=TimeoutS}) ->
+    _ = case TRef of
+        none -> ok;
+        _ -> erlang:cancel_timer(TRef)
+    end,
+    NewTRef = case TimeoutS of
+                  0 -> none;
+                  _ -> erlang:send_after(1000 * TimeoutS, self(), timeout)
+              end,
+    State#state{timeout_ref=NewTRef}.
 
 handle_messages([Message | Messages], State) ->
     {ok, NewState} = handle_message(Message, State),
@@ -130,16 +147,16 @@ handle_messages([Message | Messages], State) ->
 handle_messages([], State) ->
     {ok, State}.
 
-handle_message({hello, 1}, State) ->
+handle_message({hello, 1, TimeoutS}, State) ->
     Id = erlang:unique_integer(),
     eshetnet_registry:register(Id),
     ok = send_message({hello_id, Id}, State),
-    {ok, State};
+    {ok, State#state{timeout_s=TimeoutS}};
 
-handle_message({hello_id, 1, Id}, State) ->
+handle_message({hello_id, 1, TimeoutS, Id}, State) ->
     eshetnet_registry:register(Id),
     ok = send_message({hello}, State),
-    {ok, State};
+    {ok, State#state{timeout_s=TimeoutS}};
 
 handle_message({ping, Id}, State) ->
     ok = send_message({reply, Id, {ok, null}}, State),
