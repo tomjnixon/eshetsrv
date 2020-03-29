@@ -32,7 +32,7 @@ start_link(Ref, Socket, Transport, Opts) ->
 -spec init(ranch:ref(), inet:socket(), module(), opts()) -> ok.
 init(Ref, Socket, Transport, [Server]) ->
     ok = ranch:accept_ack(Ref),
-    ok = Transport:setopts(Socket, [{active, once}]),
+    ok = Transport:setopts(Socket, [{active, once}, {keepalive, true}]),
 	gen_server:enter_loop(?MODULE, [], #state{socket=Socket, transport=Transport, server=Server}).
 
 init(State) ->
