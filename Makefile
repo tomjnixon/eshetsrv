@@ -9,4 +9,6 @@ DEPS = sync
 DIALYZER_OPTS = -Werror_handling -Wrace_conditions -Wunmatched_returns -Wunderspecs
 EUNIT_OPTS = verbose
 
+DEP_PLUGINS = cowboy
+
 include erlang.mk
