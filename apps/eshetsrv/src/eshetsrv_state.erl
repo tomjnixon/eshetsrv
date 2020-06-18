@@ -48,6 +48,9 @@ init([]) ->
     Tree = eshetsrv_tree:new(),
     {ok, #state{tree=Tree}}.
 
+handle_call({link, Client}, _From, State) ->
+    link(Client),
+    {reply, ok, State};
 
 % actions
 
