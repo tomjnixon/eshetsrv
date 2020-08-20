@@ -4,10 +4,12 @@
 -export([pack/1]).
 
 msgpack_pack(Value) ->
-    msgpack:pack(eshet_common:format_json(Value), [{pack_str, from_binary}]).
+    msgpack:pack(eshet_common:format_json(Value), [{pack_str, from_binary},
+                                                   {pack_binary, from_tagged_binary}]).
 
 msgpack_unpack(Msgpack) ->
-    msgpack:unpack(Msgpack, [{unpack_str, as_binary}]).
+    msgpack:unpack(Msgpack, [{unpack_str, as_binary},
+                             {unpack_binary, as_tagged_binary}]).
 
 parse_one(<<16#47, Len:16, Payload:Len/binary, Rest/binary>>) ->
     case parse_payload(Payload) of
