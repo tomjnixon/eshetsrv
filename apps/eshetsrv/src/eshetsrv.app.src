@@ -1,0 +1,12 @@
+{application, eshetsrv,
+ [{description, "eshet core server"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {eshetsrv_app, []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []}
+ ]}.

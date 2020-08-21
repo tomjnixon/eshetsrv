@@ -1,0 +1,15 @@
+{application, eshetproto,
+ [{description, "eshet external binary protocol server"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {eshetproto_app, []}},
+  {applications,
+   [kernel,
+    stdlib,
+    eshetsrv,
+    ranch,
+    msgpack
+   ]},
+  {env,[]},
+  {modules, []}
+ ]}.

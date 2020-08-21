@@ -1,7 +1,2 @@
-_rel
-.erlang.mk
-*.plt
-*.d
-ebin
-*.beam
-deps
+_build
+.rebar3
