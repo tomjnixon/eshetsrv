@@ -1,4 +1,4 @@
--module(eshethttp_action_call).
+-module(eshethttp_set).
 
 -behavior(cowboy_handler).
 
@@ -9,5 +9,6 @@ init(Req, State) ->
 
 handle_json(JsonReq, Req1, State1 = [Server]) ->
     Path = eshet:path_unsplit(cowboy_req:path_info(Req1)),
-    Resp = eshet:action_call(Server, Path, JsonReq),
+    Resp = eshet:set(Server, Path, JsonReq),
+    erlang:display({resp, Resp}),
     eshethttp_cowboy_utils:eshet_reply(Resp, Req1, State1).
