@@ -8,7 +8,7 @@
  {<<"jiffy">>,{pkg,<<"jiffy">>,<<"1.0.5">>},0},
  {<<"msgpack">>,
   {git,"https://github.com/tomjnixon/msgpack-erlang.git",
-       {ref,"2c6120aca433ced65fc9770727a3952cd8e5f660"}},
+       {ref,"5387b780e7727d8002b49e2ca2514c19296b6d80"}},
   0},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.7.1">>},0}]}.
 [
