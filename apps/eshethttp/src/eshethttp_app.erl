@@ -17,7 +17,10 @@ start(_Type, _Args) ->
                                          [eshetsrv_state]},
                                         {"/set/[...]",
                                          eshethttp_set,
-                                         [eshetsrv_state]}
+                                         [eshetsrv_state]},
+                                        {"/ws",
+                                         eshethttp_ws,
+                                         [eshetsrv_state, eshethttp_registry]}
                                        ]}]),
     {ok, _} = cowboy:start_clear(eshethttp,
                                  [{port, Port}],
