@@ -149,12 +149,12 @@ handle_messages([], State) ->
 
 handle_message({hello, 1, TimeoutS}, State) ->
     Id = erlang:unique_integer(),
-    eshetnet_registry:register(Id),
+    eshetnet_registry:register(eshetnet_registry, Id),
     ok = send_message({hello_id, Id}, State),
     {ok, State#state{timeout_s=TimeoutS}};
 
 handle_message({hello_id, 1, TimeoutS, Id}, State) ->
-    eshetnet_registry:register(Id),
+    eshetnet_registry:register(eshetnet_registry,Id),
     ok = send_message({hello}, State),
     {ok, State#state{timeout_s=TimeoutS}};
 
@@ -168,7 +168,7 @@ handle_message({reply, Id, Response}, State=#state{wait=Wait}) ->
     {ok, State#state{wait=NewWait}};
 
 handle_message({action_register, Id, Path}, State=#state{server=Srv}) ->
-    reply(eshetnet_registry:proxy(action_register, [Srv, Path]), Id, State);
+    reply(eshetnet_registry:proxy(eshetnet_registry, action_register, [Srv, Path]), Id, State);
 
 handle_message({action_call, Id, Path, Msg}, State=#state{server=Srv}) ->
     Self = self(),
@@ -198,7 +198,7 @@ handle_message({set, Id, Path, Msg}, State=#state{server=Srv}) ->
     {ok, State};
 
 handle_message({event_register, Id, Path}, State=#state{server=Srv}) ->
-    reply(eshetnet_registry:proxy(event_register, [Srv, Path]), Id, State);
+    reply(eshetnet_registry:proxy(eshetnet_registry, event_register, [Srv, Path]), Id, State);
 
 handle_message({event_emit, Id, Path, Value}, State=#state{server=Srv}) ->
     reply(eshet:event_emit(Srv, Path, Value), Id, State);
@@ -207,7 +207,7 @@ handle_message({event_listen, Id, Path}, State=#state{server=Srv}) ->
     reply(eshet:event_listen(Srv, Path), Id, State);
 
 handle_message({state_register, Id, Path}, State=#state{server=Srv}) ->
-    reply(eshetnet_registry:proxy(state_register, [Srv, Path]), Id, State);
+    reply(eshetnet_registry:proxy(eshetnet_registry, state_register, [Srv, Path]), Id, State);
 
 handle_message({state_changed, Id, Path, Value}, State=#state{server=Srv}) ->
     reply(eshet:state_changed(Srv, Path, Value), Id, State);

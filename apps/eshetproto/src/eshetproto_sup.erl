@@ -10,7 +10,8 @@ start_link() ->
 init([]) ->
     Procs = [
              #{id => eshetnet_registry,
-               start => {eshetnet_registry, start_link, [eshetsrv_state]},
+               start => {eshetnet_registry, start_link, [{local, eshetnet_registry},
+                                                         eshetsrv_state]},
                modules => [eshetnet_registry]
               }
             ],

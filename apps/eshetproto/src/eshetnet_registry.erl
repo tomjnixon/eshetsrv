@@ -2,9 +2,9 @@
 -behaviour(gen_server).
 
 %% API.
--export([start_link/1]).
--export([register/1]).
--export([proxy/2]).
+-export([start_link/2]).
+-export([register/2]).
+-export([proxy/3]).
 
 %% gen_server.
 -export([init/1]).
@@ -21,15 +21,15 @@
 
 %% API.
 
-start_link(Srv) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [Srv], []).
+start_link(Name, Srv) ->
+    gen_server:start_link(Name, ?MODULE, [Srv], []).
 
-register(Id) ->
-    gen_server:call(?MODULE, {register, Id}).
+register(Name, Id) ->
+    gen_server:call(Name, {register, Id}).
 
-proxy(Function, Args) ->
+proxy(Name, Function, Args) ->
     % gen_server:call(?MODULE, {proxy, Function, Args}).
-    case gen_server:call(?MODULE, check_registered) of
+    case gen_server:call(Name, check_registered) of
         true ->
             erlang:apply(eshet, Function, Args);
         false ->
