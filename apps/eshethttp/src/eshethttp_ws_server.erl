@@ -47,5 +47,4 @@ reply({ok, Messages, NewState}, State = #state{ws = WS}) ->
     WS ! {send, Messages},
     {noreply, State#state{gen_state = NewState}};
 reply(stop, State) ->
-
     {stop, timeout, State}.
