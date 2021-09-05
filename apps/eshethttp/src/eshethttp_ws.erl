@@ -19,6 +19,23 @@ websocket_init([Srv, Registry]) ->
     {ok, WSServer} = eshethttp_ws_server:start_link(self(), Srv, Registry),
     {[], WSServer}.
 
+% convert from a command string to an atom
+cmd_to_atom(<<"hello">>) -> hello;
+cmd_to_atom(<<"hello_id">>) -> hello_id;
+cmd_to_atom(<<"ping">>) -> ping;
+cmd_to_atom(<<"action_register">>) -> action_register;
+cmd_to_atom(<<"action_call">>) -> action_call;
+cmd_to_atom(<<"prop_register">>) -> prop_register;
+cmd_to_atom(<<"get">>) -> get;
+cmd_to_atom(<<"set">>) -> set;
+cmd_to_atom(<<"event_register">>) -> event_register;
+cmd_to_atom(<<"event_emit">>) -> event_emit;
+cmd_to_atom(<<"event_listen">>) -> event_listen;
+cmd_to_atom(<<"state_register">>) -> state_register;
+cmd_to_atom(<<"state_changed">>) -> state_changed;
+cmd_to_atom(<<"state_unknown">>) -> state_unknown;
+cmd_to_atom(<<"state_observe">>) -> state_observe.
+
 % convert json messages to the internal tuple format for eshetproto_generic
 from_json([<<"reply">>, Id, [<<"ok">>, Value]]) ->
     {reply, Id, {ok, Value}};
@@ -32,8 +49,8 @@ from_json([<<"state_changed">>, Path, [<<"known">>, Value]]) ->
     {state_changed, Path, {known, Value}};
 from_json([<<"state_changed">>, Path, <<"unknown">>]) ->
     {state_changed, Path, unknown};
-from_json([Type | Rest]) ->
-    erlang:list_to_tuple([erlang:binary_to_atom(Type) | Rest]).
+from_json([Cmd | Rest]) ->
+    erlang:list_to_tuple([cmd_to_atom(Cmd) | Rest]).
 
 % convert internal message format to json
 to_json(Message) ->
