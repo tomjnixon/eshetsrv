@@ -18,7 +18,7 @@ read_body(Req) ->
 read_json(Req) ->
     {ok, Body, Req2} = read_body(Req),
     try
-      {ok, jiffy:decode(Body), Req2}
+      {ok, jiffy:decode(Body, [return_maps]), Req2}
     catch
       error:{Character, Error} ->
           {error, {Character, Error}, Req2}
