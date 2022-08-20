@@ -4,7 +4,7 @@
  {<<"enough">>,{pkg,<<"enough">>,<<"0.1.0">>},1},
  {<<"eshet">>,
   {git,"https://github.com/tomjnixon/eshet.git",
-       {ref,"66eecb624947cacd5481ed66c04dbf64baebc947"}},
+       {ref,"4c9de686129066d9f28bcf1c26e4eb00d9257182"}},
   0},
  {<<"gun">>,{pkg,<<"gun">>,<<"1.3.3">>},0},
  {<<"jiffy">>,{pkg,<<"jiffy">>,<<"1.0.5">>},0},
