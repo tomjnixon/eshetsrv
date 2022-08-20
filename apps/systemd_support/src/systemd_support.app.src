@@ -1,16 +1,16 @@
-{application, systemd_support,
- [{description, "systemd support"},
-  {vsn, "0.1.0"},
-  {registered, []},
-  {mod, {systemd_support_app, []}},
-  {applications,
-   [kernel,
-    stdlib,
-    eshetsrv,
-    eshethttp,
-    eshetproto,
-    systemd
-   ]},
-  {env,[]},
-  {modules, []}
- ]}.
+{application, systemd_support, [
+    {description, "systemd support"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {mod, {systemd_support_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        eshetsrv,
+        eshethttp,
+        eshetproto,
+        systemd
+    ]},
+    {env, []},
+    {modules, []}
+]}.

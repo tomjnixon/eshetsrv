@@ -27,11 +27,11 @@ connect() ->
     MRef = monitor(process, Pid),
     StreamRef = gun:ws_upgrade(Pid, "/ws", [], #{compress => true}),
     receive
-      {gun_upgrade, Pid, StreamRef, [<<"websocket">>], _} ->
-          ok;
-      Msg ->
-          ct:pal("Unexpected message ~p", [Msg]),
-          error(failed)
+        {gun_upgrade, Pid, StreamRef, [<<"websocket">>], _} ->
+            ok;
+        Msg ->
+            ct:pal("Unexpected message ~p", [Msg]),
+            error(failed)
     end,
     {Pid, MRef, StreamRef}.
 
@@ -40,13 +40,13 @@ send_json(Pid, Json) ->
 
 recv_json(Pid, StreamRef) ->
     receive
-      {gun_ws, Pid, StreamRef, {text, Text}} ->
-          jiffy:decode(Text, [return_maps]);
-      Msg ->
-          ct:pal("Unexpected message ~p", [Msg]),
-          error(failed)
-      after 1000 ->
-                error(timeout)
+        {gun_ws, Pid, StreamRef, {text, Text}} ->
+            jiffy:decode(Text, [return_maps]);
+        Msg ->
+            ct:pal("Unexpected message ~p", [Msg]),
+            error(failed)
+    after 1000 ->
+        error(timeout)
     end.
 
 check_call(_Config) ->
@@ -68,6 +68,8 @@ check_observe(_Config) ->
     [<<"reply_state">>, 1, [<<"ok">>, <<"unknown">>]] = recv_json(Pid, StreamRef),
 
     ok = eshet:set(eshetsrv_state, <<"/server_state">>, <<"foo">>),
-    [<<"state_changed">>, <<"/server_state">>, [<<"known">>, <<"foo">>]] = recv_json(Pid, StreamRef),
+    [<<"state_changed">>, <<"/server_state">>, [<<"known">>, <<"foo">>]] = recv_json(
+        Pid, StreamRef
+    ),
 
     ok = gun:close(Pid).

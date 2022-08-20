@@ -43,4 +43,3 @@ http_get(Url) ->
     {ok, Resp} = httpc:request(get, {Url, []}, [], []),
     {{_Version, 200, _ReasonPhrase}, _Headers, Body} = Resp,
     jiffy:decode(Body).
-

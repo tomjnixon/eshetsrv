@@ -16,7 +16,8 @@ new() -> #{}.
     {leaf, any()} | directory | nothing | {error, not_a_directory}.
 lookup(Tree, Path) ->
     case Path of
-        [] -> directory;
+        [] ->
+            directory;
         [Leaf] ->
             case Tree of
                 #{Leaf := {leaf, Value}} ->
@@ -40,11 +41,13 @@ lookup(Tree, Path) ->
 -spec list_dir(tree(), [any()]) ->
     {ok, [{any(), dir | {leaf, any()}}]} | {error, not_a_directory}.
 list_dir(Tree, []) ->
-    {ok, [case Entry of
-              #{} -> {Name, dir};
-              {leaf, Leaf} -> {Name, {leaf, Leaf}}
-          end
-          || {Name, Entry} <- maps:to_list(Tree)]};
+    {ok, [
+        case Entry of
+            #{} -> {Name, dir};
+            {leaf, Leaf} -> {Name, {leaf, Leaf}}
+        end
+     || {Name, Entry} <- maps:to_list(Tree)
+    ]};
 list_dir(Tree, [Head | Tail]) ->
     case Tree of
         #{Head := {leaf, _Value}} ->
@@ -62,7 +65,8 @@ list_dir(Tree, [Head | Tail]) ->
     | {error, not_a_directory}.
 insert(Tree, Path, Value) ->
     case Path of
-        [] -> {error, path_is_directory};
+        [] ->
+            {error, path_is_directory};
         [Leaf] ->
             case Tree of
                 #{Leaf := {leaf, _Value}} ->
@@ -95,7 +99,8 @@ insert(Tree, Path, Value) ->
     | {error, not_a_directory}.
 put(Tree, Path, Value) ->
     case Path of
-        [] -> {error, path_is_directory};
+        [] ->
+            {error, path_is_directory};
         [Leaf] ->
             case Tree of
                 #{Leaf := {leaf, _Value}} ->
@@ -129,7 +134,8 @@ put(Tree, Path, Value) ->
     | {error, no_such_node}.
 remove(Tree, Path) ->
     case Path of
-        [] -> {error, path_is_directory};
+        [] ->
+            {error, path_is_directory};
         [Leaf] ->
             case Tree of
                 #{Leaf := {leaf, _Value}} ->
@@ -154,20 +160,21 @@ remove(Tree, Path) ->
             end
     end.
 
--type update_fun() :: fun((nothing|{leaf, any()}) -> {leaf, any()} | nothing).
--type update_fun_ret() :: fun((nothing|{leaf, any()}) -> {leaf, any(), any()} | {nothing, any()}).
+-type update_fun() :: fun((nothing | {leaf, any()}) -> {leaf, any()} | nothing).
+-type update_fun_ret() :: fun((nothing | {leaf, any()}) -> {leaf, any(), any()} | {nothing, any()}).
 -spec update(tree(), path(), update_fun() | update_fun_ret()) ->
     {ok, tree()}
     | {ok, tree(), any()}
     | {error, path_is_directory}
     | {error, not_a_directory}.
 update(Tree, Path, Fun) ->
-    Action = case lookup(Tree, Path) of
-        nothing -> {call, nothing};
-        {leaf, Leaf} -> {call, {leaf, Leaf}};
-        directory -> {error, path_is_directory};
-        {error, not_a_directory} -> {error, not_a_directory}
-    end,
+    Action =
+        case lookup(Tree, Path) of
+            nothing -> {call, nothing};
+            {leaf, Leaf} -> {call, {leaf, Leaf}};
+            directory -> {error, path_is_directory};
+            {error, not_a_directory} -> {error, not_a_directory}
+        end,
 
     case Action of
         {call, Arg} ->
@@ -197,15 +204,18 @@ map(Tree, Fun) ->
     end.
 
 map(Tree, Fun, Path) when is_map(Tree) ->
-    Entries = [{Key, map(Value, Fun, Path ++ [Key])} ||
-                   {Key, Value} <- maps:to_list(Tree)],
-    EntriesNotNothing = [{Key, Value}
-                             || {Key, Value} <- Entries,
-                                Value =/= nothing],
+    Entries = [
+        {Key, map(Value, Fun, Path ++ [Key])}
+     || {Key, Value} <- maps:to_list(Tree)
+    ],
+    EntriesNotNothing = [
+        {Key, Value}
+     || {Key, Value} <- Entries,
+        Value =/= nothing
+    ],
     case EntriesNotNothing of
         [] -> nothing;
         _ -> maps:from_list(EntriesNotNothing)
     end;
-
 map({leaf, L}, Fun, Path) ->
     Fun(Path, L).

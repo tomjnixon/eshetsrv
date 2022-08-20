@@ -58,14 +58,18 @@ to_json(Message) ->
 
 websocket_handle({_Type, Data}, WSServer) ->
     try jiffy:decode(Data, [return_maps]) of
-      Message ->
-          gen_server:cast(WSServer, {messages, [from_json(Message)]}),
-          {[], WSServer}
+        Message ->
+            gen_server:cast(WSServer, {messages, [from_json(Message)]}),
+            {[], WSServer}
     catch
-      {error, {Char, ErrorAtom}} ->
-          Error = erlang:iolist_to_binary(io_lib:format("json error at char ~p: ~p~n",
-                                                        [Char, ErrorAtom])),
-          error_resp(Error)
+        {error, {Char, ErrorAtom}} ->
+            Error = erlang:iolist_to_binary(
+                io_lib:format(
+                    "json error at char ~p: ~p~n",
+                    [Char, ErrorAtom]
+                )
+            ),
+            error_resp(Error)
     end;
 websocket_handle(_Data, WSServer) ->
     {[], WSServer}.

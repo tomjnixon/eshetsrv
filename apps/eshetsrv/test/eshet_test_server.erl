@@ -13,10 +13,10 @@
 -export([code_change/3]).
 
 -record(state, {
-          server,
-          test_client=null,
-          prop_value=null
-         }).
+    server,
+    test_client = null,
+    prop_value = null
+}).
 
 %% API.
 
@@ -32,43 +32,37 @@ init([Server]) ->
     ok = eshet:prop_register(Server, <<"/prop">>),
     ok = eshet:event_listen(Server, <<"/event">>),
     ok = eshet:state_register(Server, <<"/server_state">>),
-    {ok, #state{server=Server}}.
+    {ok, #state{server = Server}}.
 
 handle_call({set_test_client, Client}, _From, State) ->
-    {reply, ok, State#state{test_client=Client}};
-
+    {reply, ok, State#state{test_client = Client}};
 handle_call({action_call, <<"/action">>, []}, _From, State) ->
     {reply, {ok, action_result}, State};
-
 handle_call({action_call, <<"/action_error">>, []}, _From, _State) ->
     exit(normal);
-
 handle_call({prop_set, <<"/prop">>, NewValue}, _From, State) ->
-    {reply, ok, State#state{prop_value=NewValue}};
-
-handle_call({prop_get, <<"/prop">>}, _From, State=#state{prop_value=Value}) ->
+    {reply, ok, State#state{prop_value = NewValue}};
+handle_call({prop_get, <<"/prop">>}, _From, State = #state{prop_value = Value}) ->
     {reply, {ok, Value}, State};
-
-handle_call(observe_state, _From, State=#state{server=Server}) ->
+handle_call(observe_state, _From, State = #state{server = Server}) ->
     Ret = eshet:state_observe(Server, <<"/state">>),
     {reply, Ret, State};
-
-handle_call({state_set, <<"/server_state">>, NewState},
-            _From, State=#state{server=Server}) ->
+handle_call(
+    {state_set, <<"/server_state">>, NewState},
+    _From,
+    State = #state{server = Server}
+) ->
     ok = eshet:state_changed(Server, <<"/server_state">>, NewState),
     {reply, ok, State};
-
 handle_call(_Request, _From, State) ->
     {reply, ignored_in_test_server, State}.
 
-handle_cast({event_notify, <<"/event">>, Value}, State=#state{test_client=Client}) ->
+handle_cast({event_notify, <<"/event">>, Value}, State = #state{test_client = Client}) ->
     Client ! {event, Value},
     {noreply, State};
-
-handle_cast({state_changed, <<"/state">>, Value}, State=#state{test_client=Client}) ->
+handle_cast({state_changed, <<"/state">>, Value}, State = #state{test_client = Client}) ->
     Client ! {state, Value},
     {noreply, State};
-
 handle_cast(Msg, State) ->
     erlang:display({message, Msg}),
     {noreply, State}.

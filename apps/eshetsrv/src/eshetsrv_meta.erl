@@ -13,7 +13,7 @@
 -export([code_change/3]).
 
 -record(state, {
-          server
+    server
 }).
 
 %% API.
@@ -26,17 +26,16 @@ start_link(Srv) ->
 
 init([Srv]) ->
     eshet:action_register(Srv, <<"/meta/ls">>),
-    {ok, #state{server=Srv}}.
+    {ok, #state{server = Srv}}.
 
-handle_call({action_call, <<"/meta/ls">>, [Path]}, _From, State=#state{server=Srv})
-  when is_binary(Path) ->
+handle_call({action_call, <<"/meta/ls">>, [Path]}, _From, State = #state{server = Srv}) when
+    is_binary(Path)
+->
     Res = eshetsrv_state:lookup(Srv, node, Path),
     {reply, Res, State};
-
 handle_call({action_call, _, _}, _From, State) ->
     {reply, {error, bad_args}, State};
-
-handle_call(_Request, _From, State=#state{server=_Srv}) ->
+handle_call(_Request, _From, State = #state{server = _Srv}) ->
     {reply, ignored, State}.
 
 handle_cast(_Msg, State) ->

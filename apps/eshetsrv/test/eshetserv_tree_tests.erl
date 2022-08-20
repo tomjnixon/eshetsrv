@@ -5,10 +5,13 @@ new_test() ->
     eshetsrv_tree:new().
 
 example() ->
-    #{a=>{leaf, leaf_a},
-      b=>#{
-        c=>{leaf, leaf_c},
-        d=>{leaf, leaf_d}}}.
+    #{
+        a => {leaf, leaf_a},
+        b => #{
+            c => {leaf, leaf_c},
+            d => {leaf, leaf_d}
+        }
+    }.
 
 lookup_test() ->
     directory = eshetsrv_tree:lookup(example(), []),
@@ -30,12 +33,17 @@ insert_subdir_test() ->
 
 insert_existing_subdir_test() ->
     {ok, T} = eshetsrv_tree:insert(example(), [b, e], f),
-    ?assertEqual(#{a=>{leaf, leaf_a},
-                   b=>#{
-                     c=>{leaf, leaf_c},
-                     d=>{leaf, leaf_d},
-                     e => {leaf, f}}},
-                 T),
+    ?assertEqual(
+        #{
+            a => {leaf, leaf_a},
+            b => #{
+                c => {leaf, leaf_c},
+                d => {leaf, leaf_d},
+                e => {leaf, f}
+            }
+        },
+        T
+    ),
     {leaf, f} = eshetsrv_tree:lookup(T, [b, e]).
 
 insert_errors_test() ->
@@ -45,13 +53,19 @@ insert_errors_test() ->
     {error, not_a_directory} = eshetsrv_tree:insert(example(), [a, e], x).
 
 remove_test() ->
-    ?assertEqual({ok, #{b=>#{c=>{leaf, leaf_c}, d=>{leaf, leaf_d}}}}, eshetsrv_tree:remove(example(), [a])),
-    ?assertEqual({ok, #{a=>{leaf, leaf_a}, b=>#{d=>{leaf, leaf_d}}}}, eshetsrv_tree:remove(example(), [b, c])).
+    ?assertEqual(
+        {ok, #{b => #{c => {leaf, leaf_c}, d => {leaf, leaf_d}}}},
+        eshetsrv_tree:remove(example(), [a])
+    ),
+    ?assertEqual(
+        {ok, #{a => {leaf, leaf_a}, b => #{d => {leaf, leaf_d}}}},
+        eshetsrv_tree:remove(example(), [b, c])
+    ).
 
 remove_empty_test() ->
     {ok, T} = eshetsrv_tree:remove(example(), [b, c]),
     {ok, T2} = eshetsrv_tree:remove(T, [b, d]),
-    ?assertEqual(#{a=>{leaf, leaf_a}}, T2),
+    ?assertEqual(#{a => {leaf, leaf_a}}, T2),
 
     {ok, T3} = eshetsrv_tree:remove(T2, [a]),
     ?assertEqual(#{}, T3).
@@ -65,37 +79,49 @@ remove_errors_test() ->
     {error, no_such_node} = eshetsrv_tree:remove(example(), [c, e]).
 
 map_no_change_test() ->
-    Result = eshetsrv_tree:map(example(),
-                               fun(P, L) ->
-                                       RealPath = case L of
-                                                      leaf_a -> [a];
-                                                      leaf_c -> [b, c];
-                                                      leaf_d -> [b, d]
-                                                  end,
-                                       ?assertEqual(RealPath, P),
-                                       {leaf, L}
-                               end),
+    Result = eshetsrv_tree:map(
+        example(),
+        fun(P, L) ->
+            RealPath =
+                case L of
+                    leaf_a -> [a];
+                    leaf_c -> [b, c];
+                    leaf_d -> [b, d]
+                end,
+            ?assertEqual(RealPath, P),
+            {leaf, L}
+        end
+    ),
     ?assertEqual(example(), Result).
 
 map_remove_test() ->
-    Result = eshetsrv_tree:map(example(),
-                               fun (_, leaf_c) -> nothing;
-                                   (_, leaf_d) -> nothing;
-                                   (_, L) -> {leaf, L}
-                               end),
-    ?assertEqual(#{a=>{leaf, leaf_a}}, Result).
+    Result = eshetsrv_tree:map(
+        example(),
+        fun
+            (_, leaf_c) -> nothing;
+            (_, leaf_d) -> nothing;
+            (_, L) -> {leaf, L}
+        end
+    ),
+    ?assertEqual(#{a => {leaf, leaf_a}}, Result).
 
 map_remove_all_test() ->
-    Result = eshetsrv_tree:map(example(), fun (_, _) -> nothing end),
+    Result = eshetsrv_tree:map(example(), fun(_, _) -> nothing end),
     ?assertEqual(#{}, Result).
 
 map_mod_test() ->
-    Result = eshetsrv_tree:map(example(),
-                               fun (_, leaf_c) -> {leaf, leaf_x};
-                                   (_, L) -> {leaf, L}
-                               end),
-    Expected = #{a=>{leaf, leaf_a},
-                 b=>#{
-                   c=>{leaf, leaf_x},
-                   d=>{leaf, leaf_d}}},
+    Result = eshetsrv_tree:map(
+        example(),
+        fun
+            (_, leaf_c) -> {leaf, leaf_x};
+            (_, L) -> {leaf, L}
+        end
+    ),
+    Expected = #{
+        a => {leaf, leaf_a},
+        b => #{
+            c => {leaf, leaf_x},
+            d => {leaf, leaf_d}
+        }
+    },
     ?assertEqual(Expected, Result).

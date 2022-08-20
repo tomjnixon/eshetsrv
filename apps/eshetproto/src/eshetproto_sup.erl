@@ -9,10 +9,14 @@ start_link() ->
 
 init([]) ->
     Procs = [
-             #{id => eshetnet_registry,
-               start => {eshetnet_registry, start_link, [{local, eshetnet_registry},
-                                                         eshetsrv_state]},
-               modules => [eshetnet_registry]
-              }
-            ],
+        #{
+            id => eshetnet_registry,
+            start =>
+                {eshetnet_registry, start_link, [
+                    {local, eshetnet_registry},
+                    eshetsrv_state
+                ]},
+            modules => [eshetnet_registry]
+        }
+    ],
     {ok, {{one_for_one, 1, 5}, Procs}}.

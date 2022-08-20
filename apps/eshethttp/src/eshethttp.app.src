@@ -1,15 +1,15 @@
-{application, eshethttp,
- [{description, "eshet http interface"},
-  {vsn, "0.1.0"},
-  {registered, []},
-  {mod, {eshethttp_app, []}},
-  {applications,
-   [kernel,
-    stdlib,
-    eshetsrv,
-    cowboy,
-    jiffy
-   ]},
-  {env,[]},
-  {modules, []}
- ]}.
+{application, eshethttp, [
+    {description, "eshet http interface"},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {mod, {eshethttp_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        eshetsrv,
+        cowboy,
+        jiffy
+    ]},
+    {env, []},
+    {modules, []}
+]}.

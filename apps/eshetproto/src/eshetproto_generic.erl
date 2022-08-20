@@ -56,25 +56,27 @@ do_handle_messages([], State) ->
 % impl
 
 reset_timeout(State = #state{timeout_ref = TRef, timeout_s = TimeoutS}) ->
-    _ = case TRef of
-          none ->
-              ok;
-          _ ->
-              erlang:cancel_timer(TRef)
+    _ =
+        case TRef of
+            none ->
+                ok;
+            _ ->
+                erlang:cancel_timer(TRef)
         end,
-    NewTRef = case TimeoutS of
-                0 ->
-                    none;
-                _ ->
-                    erlang:send_after(1000 * TimeoutS, self(), timeout)
-              end,
+    NewTRef =
+        case TimeoutS of
+            0 ->
+                none;
+            _ ->
+                erlang:send_after(1000 * TimeoutS, self(), timeout)
+        end,
     State#state{timeout_ref = NewTRef}.
 
-handle_message({hello, 1, TimeoutS}, State=#state{registry=Registry}) ->
+handle_message({hello, 1, TimeoutS}, State = #state{registry = Registry}) ->
     Id = erlang:unique_integer(),
     eshetnet_registry:register(Registry, Id),
     {ok, [{hello_id, Id}], State#state{timeout_s = TimeoutS}};
-handle_message({hello_id, 1, TimeoutS, Id}, State=#state{registry=Registry}) ->
+handle_message({hello_id, 1, TimeoutS, Id}, State = #state{registry = Registry}) ->
     eshetnet_registry:register(Registry, Id),
     {ok, [{hello}], State#state{timeout_s = TimeoutS}};
 handle_message({ping, Id}, State) ->
@@ -87,28 +89,28 @@ handle_message({action_register, Id, Path}, State = #state{server = Srv, registr
     reply(eshetnet_registry:proxy(Registry, action_register, [Srv, Path]), Id, State);
 handle_message({action_call, Id, Path, Msg}, State = #state{server = Srv}) ->
     Self = self(),
-    spawn_link(fun () ->
-                       Result = eshet:action_call(Srv, Path, Msg),
-                       gen_server:cast(Self, {send, {reply, Id, Result}})
-               end),
+    spawn_link(fun() ->
+        Result = eshet:action_call(Srv, Path, Msg),
+        gen_server:cast(Self, {send, {reply, Id, Result}})
+    end),
     {ok, [], State};
 handle_message({prop_register, Id, Path}, State = #state{server = Srv}) ->
     reply(eshet:prop_register(Srv, Path), Id, State);
 handle_message({get, Id, Path}, State = #state{server = Srv}) ->
     Self = self(),
-    spawn_link(fun () ->
-                       Result = eshet:get(Srv, Path),
-                       gen_server:cast(Self, {send, {reply, Id, Result}})
-               end),
+    spawn_link(fun() ->
+        Result = eshet:get(Srv, Path),
+        gen_server:cast(Self, {send, {reply, Id, Result}})
+    end),
     {ok, [], State};
 handle_message({set, Id, Path, Msg}, State = #state{server = Srv}) ->
     Self = self(),
-    spawn_link(fun () ->
-                       Result = eshet:set(Srv, Path, Msg),
-                       gen_server:cast(Self, {send, {reply, Id, Result}})
-               end),
+    spawn_link(fun() ->
+        Result = eshet:set(Srv, Path, Msg),
+        gen_server:cast(Self, {send, {reply, Id, Result}})
+    end),
     {ok, [], State};
-handle_message({event_register, Id, Path}, State = #state{server = Srv, registry=Registry}) ->
+handle_message({event_register, Id, Path}, State = #state{server = Srv, registry = Registry}) ->
     reply(eshetnet_registry:proxy(Registry, event_register, [Srv, Path]), Id, State);
 handle_message({event_emit, Id, Path, Value}, State = #state{server = Srv}) ->
     reply(eshet:event_emit(Srv, Path, Value), Id, State);
