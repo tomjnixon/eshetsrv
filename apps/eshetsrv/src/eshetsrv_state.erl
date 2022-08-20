@@ -343,6 +343,16 @@ to_reply(State, {ok, NewTree}) ->
 to_reply(State, {ok, NewTree, Ret}) ->
     {reply, {ok, Ret}, State#state{tree=NewTree}}.
 
+% update a path in the tree
+% Parts: the elements of the path
+% Type: the type of node. if the node already exists, this is checked against
+%   the existing type; otherwise it is saved in the node
+% Initial: value to save if there's no node, should be a map, or
+%   {NodeMap, Ret}, where Ret is the value to return
+% Existing: function to update an existing node in the tree; takes and returns
+%   a map
+% the return value of this is a {reply, ...} tuple with the updated state, to
+% be returned from handle_call
 update_generic(State=#state{tree=Tree}, Parts, Type, Initial, Existing) ->
     to_reply(State,
              eshetsrv_tree:update(Tree, Parts, fun (nothing) ->
