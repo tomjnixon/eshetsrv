@@ -334,7 +334,7 @@ check(_Path) ->
 check(Path, Pid) when is_pid(Pid) ->
     check(Path);
 check(_Path, _Pid) ->
-    {error, path_should_be_binary}.
+    {error, pid_should_be_pid}.
 
 to_reply(State, {error, E}) ->
     {reply, {error, E}, State};
