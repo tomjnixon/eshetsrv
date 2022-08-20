@@ -27,7 +27,9 @@ eshet_test_() ->
      {"state_register_before",
       ?setup({with, [fun state_register_before/1]})},
      {"state_set",
-      ?setup({with, [fun state_set/1]})}
+      ?setup({with, [fun state_set/1]})},
+     {"state_errors",
+      ?setup({with, [fun state_errors/1]})}
     ].
 
 action({Server, _Client}) ->
@@ -89,3 +91,17 @@ state_register_before({Server, Client}) ->
 state_set({Server, _Client}) ->
     ok = eshet:set(Server, <<"/server_state">>, server_state),
     {ok, server_state} = eshet:get(Server, <<"/server_state">>).
+
+state_errors({Server, _Client}) ->
+    % generic errors
+    {error, path_should_be_binary} = eshet:state_changed(Server, "/state", new_state),
+    {error, invalid_path} = eshet:state_changed(Server, <<"state">>, new_state),
+
+    {error, no_such_node} = eshet:state_changed(Server, <<"/state">>, new_state),
+
+    ok = eshet:event_register(Server, <<"/event">>),
+    {error, wrong_type_of_node} = eshet:state_changed(Server, <<"/event">>, new_state),
+
+    {error, not_owner} = eshet:state_changed(Server, <<"/server_state">>, new_state),
+
+    {error, path_already_exists} = eshet:state_register(Server, <<"/server_state">>).
