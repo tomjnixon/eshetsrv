@@ -178,11 +178,12 @@ handle_call({register, state_owner, Path, Pid}, _From, State) ->
             {reply, {error, E}, State};
         {ok, Parts} ->
             monitor(process, Pid),
+            Time = erlang:monotonic_time(),
             update_generic(
                 State,
                 Parts,
                 state,
-                #{owner => Pid, observers => sets:new(), state => unknown},
+                #{owner => Pid, observers => sets:new(), state => unknown, last_update => Time},
                 fun
                     (L = #{owner := none, state := unknown}) ->
                         % still unknown, no need to update
@@ -192,12 +193,13 @@ handle_call({register, state_owner, Path, Pid}, _From, State) ->
                 end
             )
     end;
-handle_call({register, state_observer, Path, Pid}, _From, State) ->
+handle_call({register, state_observer_t, Path, Pid}, _From, State) ->
     case check(Path, Pid) of
         {error, E} ->
             {reply, {error, E}, State};
         {ok, Parts} ->
             monitor(process, Pid),
+            Time = erlang:monotonic_time(),
             update_generic(
                 State,
                 Parts,
@@ -206,20 +208,31 @@ handle_call({register, state_observer, Path, Pid}, _From, State) ->
                     #{
                         owner => none,
                         observers => sets:from_list([Pid]),
-                        state => unknown
+                        state => unknown,
+                        last_update => Time
                     },
-                    unknown
+                    {unknown, 0}
                 },
-                fun(L = #{type := state, observers := Observers, state := S}) ->
-                    {leaf, L#{observers => sets:add_element(Pid, Observers)}, S}
+                fun(L = #{type := state, observers := Observers, state := S, last_update := T}) ->
+                    Diff = Time - T,
+                    {leaf, L#{observers => sets:add_element(Pid, Observers)}, {S, Diff}}
                 end
             )
+    end;
+handle_call({register, state_observer, Path, Pid}, From, State) ->
+    % wrapper around state_observer_t which doesn't return time for compatibility
+    case handle_call({register, state_observer_t, Path, Pid}, From, State) of
+        {reply, {ok, {S, _T}}, NewState} ->
+            {reply, {ok, S}, NewState};
+        Other ->
+            Other
     end;
 handle_call({state_changed, Path, Pid, NewState}, _From, State = #state{tree = Tree}) ->
     case check(Path, Pid) of
         {error, E} ->
             {reply, {error, E}, State};
         {ok, Parts} ->
+            Time = erlang:monotonic_time(),
             to_reply(
                 State,
                 eshetsrv_tree:update(
@@ -232,7 +245,7 @@ handle_call({state_changed, Path, Pid, NewState}, _From, State = #state{tree = T
                             case L of
                                 #{owner := Pid, observers := Observers} ->
                                     ok = send_state_changed(Observers, Path, NewState),
-                                    {leaf, L#{state => NewState}};
+                                    {leaf, L#{state => NewState, last_update => Time}};
                                 #{owner := _} ->
                                     {error, not_owner}
                             end;

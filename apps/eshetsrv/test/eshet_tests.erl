@@ -21,7 +21,8 @@ eshet_test_() ->
         {"state", ?setup({with, [fun state/1]})},
         {"state_register_before", ?setup({with, [fun state_register_before/1]})},
         {"state_set", ?setup({with, [fun state_set/1]})},
-        {"state_errors", ?setup({with, [fun state_errors/1]})}
+        {"state_errors", ?setup({with, [fun state_errors/1]})},
+        {"state_time", ?setup({with, [fun state_time/1]})}
     ].
 
 action({Server, _Client}) ->
@@ -97,3 +98,29 @@ state_errors({Server, _Client}) ->
     {error, not_owner} = eshet:state_changed(Server, <<"/server_state">>, new_state),
 
     {error, path_already_exists} = eshet:state_register(Server, <<"/server_state">>).
+
+ms(T) ->
+    erlang:convert_time_unit(T, millisecond, native).
+
+time_close(T1, T2) ->
+    Tol = ms(50),
+    erlang:abs(T1 - T2) < Tol.
+
+state_time({Server, _Client}) ->
+    ok = eshet:state_register(Server, <<"/state">>),
+    ok = eshet:state_register(Server, <<"/state1">>),
+    {ok, unknown, T2} = eshet:state_observe_t(Server, <<"/state2">>),
+    ?assert(time_close(T2, ms(0))),
+
+    % registering sets the timer
+    timer:sleep(300),
+
+    {ok, unknown, T} = eshet:state_observe_t(Server, <<"/state">>),
+    ?assert(time_close(T, ms(300))),
+
+    ok = eshet:state_changed(Server, <<"/state1">>, new_state),
+
+    timer:sleep(200),
+
+    {ok, {known, new_state}, T1} = eshet:state_observe_t(Server, <<"/state1">>),
+    ?assert(time_close(T1, ms(200))).
