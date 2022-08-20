@@ -123,7 +123,9 @@ handle_message({state_changed, Id, Path, Value}, State = #state{server = Srv}) -
 handle_message({state_unknown, Id, Path}, State = #state{server = Srv}) ->
     reply(eshet:state_unknown(Srv, Path), Id, State);
 handle_message({state_observe, Id, Path}, State = #state{server = Srv}) ->
-    reply_state(eshet:state_observe(Srv, Path), Id, State).
+    reply_state(eshet:state_observe(Srv, Path), Id, State);
+handle_message({state_observe_t, Id, Path}, State = #state{server = Srv}) ->
+    reply_state(eshet:state_observe_t(Srv, Path), Id, State).
 
 wait_reply(State = #state{next_id = Id, wait = Wait}, From) ->
     {Id, State#state{next_id = (Id + 1) band 16#ffff, wait = Wait#{Id => From}}}.
@@ -140,5 +142,7 @@ reply({error, Value}, Id, State) ->
 % {error, Value}.
 reply_state({ok, Value}, Id, State) ->
     {ok, [{reply_state, Id, {ok, Value}}], State};
+reply_state({ok, Value, T}, Id, State) ->
+    {ok, [{reply_state, Id, {ok, Value, T}}], State};
 reply_state({error, Value}, Id, State) ->
     {ok, [{reply, Id, {error, Value}}], State}.

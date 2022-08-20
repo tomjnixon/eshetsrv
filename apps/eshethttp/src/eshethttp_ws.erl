@@ -34,7 +34,8 @@ cmd_to_atom(<<"event_listen">>) -> event_listen;
 cmd_to_atom(<<"state_register">>) -> state_register;
 cmd_to_atom(<<"state_changed">>) -> state_changed;
 cmd_to_atom(<<"state_unknown">>) -> state_unknown;
-cmd_to_atom(<<"state_observe">>) -> state_observe.
+cmd_to_atom(<<"state_observe">>) -> state_observe;
+cmd_to_atom(<<"state_observe_t">>) -> state_observe_t.
 
 % convert json messages to the internal tuple format for eshetproto_generic
 from_json([<<"reply">>, Id, [<<"ok">>, Value]]) ->
@@ -54,7 +55,14 @@ from_json([Cmd | Rest]) ->
 
 % convert internal message format to json
 to_json(Message) ->
-    eshet_common:format_json(erlang:tuple_to_list(Message)).
+    eshet_common:format_json(erlang:tuple_to_list(mangle_message(Message))).
+
+% convert time format to floating point seconds
+mangle_message({reply_state, Id, {ok, Value, T}}) ->
+    TS = T / erlang:convert_time_unit(1, second, native),
+    {reply_state, Id, {ok, Value, TS}};
+mangle_message(Message) ->
+    Message.
 
 websocket_handle({_Type, Data}, WSServer) ->
     try jiffy:decode(Data, [return_maps]) of
