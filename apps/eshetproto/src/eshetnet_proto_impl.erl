@@ -15,6 +15,12 @@ msgpack_unpack(Msgpack) ->
         {unpack_binary, as_tagged_binary}
     ]).
 
+pack_time(Time) ->
+    erlang:convert_time_unit(Time, native, millisecond).
+
+unpack_time(T) ->
+    erlang:convert_time_unit(T, millisecond, native).
+
 parse_one(<<16#47, Len:16, Payload:Len/binary, Rest/binary>>) ->
     case parse_payload(Payload) of
         error -> error;
@@ -69,6 +75,13 @@ parse_payload(<<16#07, Id:16, Msgpack/binary>>) ->
     end;
 parse_payload(<<16#08, Id:16>>) ->
     {reply_state, Id, {ok, unknown}};
+parse_payload(<<16#0a, Id:16, T:32, Msgpack/binary>>) ->
+    case msgpack_unpack(Msgpack) of
+        {ok, Msg} -> {reply_state, Id, {ok, {known, Msg}, unpack_time(T)}};
+        _ -> error
+    end;
+parse_payload(<<16#0b, Id:16, T:32>>) ->
+    {reply_state, Id, {ok, unknown, unpack_time(T)}};
 parse_payload(<<16#09, Id:16>>) ->
     {ping, Id};
 parse_payload(<<16#10, Id:16, Rest/binary>>) ->
@@ -176,6 +189,11 @@ parse_payload(<<16#43, Id:16, Rest/binary>>) ->
         [Path, <<>>] -> {state_observe, Id, Path};
         _ -> error
     end;
+parse_payload(<<16#46, Id:16, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, <<>>] -> {state_observe_t, Id, Path};
+        _ -> error
+    end;
 parse_payload(<<16#44, Rest/binary>>) ->
     case binary:split(Rest, <<0>>) of
         [Path, Msgpack] ->
@@ -214,6 +232,12 @@ pack_payload({reply_state, Id, {ok, {known, Msg}}}) ->
     <<16#07, Id:16, (msgpack_pack(Msg))/binary>>;
 pack_payload({reply_state, Id, {ok, unknown}}) ->
     <<16#08, Id:16>>;
+pack_payload({reply_state, Id, {ok, {known, Msg}, Time}}) ->
+    T = pack_time(Time),
+    <<16#0a, Id:16, T:32, (msgpack_pack(Msg))/binary>>;
+pack_payload({reply_state, Id, {ok, unknown, Time}}) ->
+    T = pack_time(Time),
+    <<16#0b, Id:16, T:32>>;
 % client to server
 pack_payload({ping, Id}) ->
     <<16#09, Id:16>>;
@@ -260,6 +284,8 @@ pack_payload({state_unknown, Id, Path}) ->
 % client to server
 pack_payload({state_observe, Id, Path}) ->
     <<16#43, Id:16, Path/binary, 0>>;
+pack_payload({state_observe_t, Id, Path}) ->
+    <<16#46, Id:16, Path/binary, 0>>;
 % server to client
 pack_payload({state_changed, Path, {known, State}}) ->
     <<16#44, Path/binary, 0, (msgpack_pack(State))/binary>>;
@@ -277,6 +303,8 @@ pack(Payload) ->
 -include_lib("eunit/include/eunit.hrl").
 
 pack_unpack_test() ->
+    Time = erlang:convert_time_unit(1000, millisecond, native),
+
     Messages = [
         {hello},
         {hello, 1, 30},
@@ -286,6 +314,8 @@ pack_unpack_test() ->
         {reply, 42, {error, 5}},
         {reply_state, 42, {ok, {known, [<<"foo">>, 5]}}},
         {reply_state, 42, {ok, unknown}},
+        {reply_state, 42, {ok, {known, [<<"foo">>, 5]}, Time}},
+        {reply_state, 42, {ok, unknown, Time}},
         {ping, 42},
         {action_register, 42, <<"/path">>},
         {action_call, 42, <<"/path">>, [<<"foo">>, 5]},
@@ -302,6 +332,7 @@ pack_unpack_test() ->
         {state_changed, 42, <<"/path">>, [<<"foo">>, 5]},
         {state_unknown, 42, <<"/path">>},
         {state_observe, 42, <<"/path">>},
+        {state_observe_t, 42, <<"/path">>},
         {state_changed, <<"/path">>, {known, [<<"foo">>, 5]}},
         {state_changed, <<"/path">>, unknown}
     ],

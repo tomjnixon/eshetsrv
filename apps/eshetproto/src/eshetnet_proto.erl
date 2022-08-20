@@ -113,11 +113,12 @@ reply(Result, Id, State) ->
         end,
     {ok, State}.
 
-% replies with Result, which might be {ok, {known, Value}}, {ok, unknown} or
-% {error, Value}.
+% replies with Result, which might be {ok, {known, Value}}, {ok, unknown}, {ok,
+% known/unknown, Time}, or {error, Value}.
 reply_state(Result, Id, State) ->
     ok =
         case Result of
+            {ok, Value, Time} -> send_message({reply_state, Id, {ok, Value, Time}}, State);
             {ok, Value} -> send_message({reply_state, Id, {ok, Value}}, State);
             {error, Value} -> send_message({reply, Id, {error, Value}}, State)
         end,
@@ -200,4 +201,6 @@ handle_message({state_changed, Id, Path, Value}, State = #state{server = Srv}) -
 handle_message({state_unknown, Id, Path}, State = #state{server = Srv}) ->
     reply(eshet:state_unknown(Srv, Path), Id, State);
 handle_message({state_observe, Id, Path}, State = #state{server = Srv}) ->
-    reply_state(eshet:state_observe(Srv, Path), Id, State).
+    reply_state(eshet:state_observe(Srv, Path), Id, State);
+handle_message({state_observe_t, Id, Path}, State = #state{server = Srv}) ->
+    reply_state(eshet:state_observe_t(Srv, Path), Id, State).
