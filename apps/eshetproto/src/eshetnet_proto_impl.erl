@@ -209,6 +209,16 @@ parse_payload(<<16#45, Rest/binary>>) ->
         [Path, <<>>] -> {state_changed, Path, unknown};
         _ -> error
     end;
+parse_payload(<<16#47, Id:16, Rest/binary>>) ->
+    case binary:split(Rest, <<0>>) of
+        [Path, Msgpack] ->
+            case msgpack_unpack(Msgpack) of
+                {ok, Msg} -> {state_set, Id, Path, Msg};
+                _ -> error
+            end;
+        _ ->
+            error
+    end;
 parse_payload(_) ->
     error.
 
@@ -290,7 +300,9 @@ pack_payload({state_observe_t, Id, Path}) ->
 pack_payload({state_changed, Path, {known, State}}) ->
     <<16#44, Path/binary, 0, (msgpack_pack(State))/binary>>;
 pack_payload({state_changed, Path, unknown}) ->
-    <<16#45, Path/binary, 0>>.
+    <<16#45, Path/binary, 0>>;
+pack_payload({state_set, Id, Path, Msg}) ->
+    <<16#47, Id:16, Path/binary, 0, (msgpack_pack(Msg))/binary>>.
 
 pack(Payload) ->
     PackedPayload = pack_payload(Payload),
@@ -334,7 +346,8 @@ pack_unpack_test() ->
         {state_observe, 42, <<"/path">>},
         {state_observe_t, 42, <<"/path">>},
         {state_changed, <<"/path">>, {known, [<<"foo">>, 5]}},
-        {state_changed, <<"/path">>, unknown}
+        {state_changed, <<"/path">>, unknown},
+        {state_set, 42, <<"/path">>, [<<"foo">>, 5]}
     ],
 
     [

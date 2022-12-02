@@ -54,6 +54,10 @@ handle_call({prop_set, Path, Value}, From, State) ->
     {Id, State1} = wait_reply(State, From),
     ok = send_message({prop_set, Id, Path, Value}, State),
     {noreply, State1};
+handle_call({state_set, Path, Value}, From, State) ->
+    {Id, State1} = wait_reply(State, From),
+    ok = send_message({state_set, Id, Path, Value}, State),
+    {noreply, State1};
 handle_call(_Request, _From, State = #state{server = _Srv}) ->
     {reply, ignored, State}.
 
