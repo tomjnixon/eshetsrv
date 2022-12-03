@@ -25,8 +25,15 @@ read_json(Req) ->
     end.
 
 reply_json(StatusCode, Json, Req) ->
+    QS = cowboy_req:parse_qs(Req),
+    JsonWrapped =
+        case proplists:is_defined(<<"wrap">>, QS) of
+            true -> #{<<"value">> => Json};
+            false -> Json
+        end,
+
     Headers = #{<<"Content-Type">> => <<"application/json">>},
-    Body = jiffy:encode(Json),
+    Body = jiffy:encode(JsonWrapped),
     {ok, cowboy_req:reply(StatusCode, Headers, Body, Req)}.
 
 json_req_resp(F, Req0, State0) ->
