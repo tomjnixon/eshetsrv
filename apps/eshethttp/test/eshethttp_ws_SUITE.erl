@@ -3,6 +3,7 @@
 -export([all/0, init_per_suite/1, end_per_suite/1]).
 -export([check_call/1]).
 -export([check_observe/1]).
+-export([check_observe_time/1]).
 
 init_per_suite(Config) ->
     application:set_env(eshethttp, port, 11238),
