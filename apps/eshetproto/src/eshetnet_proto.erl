@@ -2,8 +2,8 @@
 -behaviour(ranch_protocol).
 -behaviour(gen_server).
 
--export([start_link/4]).
--export([init/4]).
+-export([start_link/3]).
+-export([init/3]).
 
 %% gen_server.
 -export([init/1]).
@@ -27,13 +27,13 @@
     timeout_ref = none
 }).
 
-start_link(Ref, Socket, Transport, Opts) ->
-    Pid = proc_lib:spawn_link(?MODULE, init, [Ref, Socket, Transport, Opts]),
+start_link(Ref, Transport, Opts) ->
+    Pid = proc_lib:spawn_link(?MODULE, init, [Ref, Transport, Opts]),
     {ok, Pid}.
 
--spec init(ranch:ref(), inet:socket(), module(), opts()) -> ok.
-init(Ref, Socket, Transport, [Server]) ->
-    ok = ranch:accept_ack(Ref),
+-spec init(ranch:ref(), module(), opts()) -> ok.
+init(Ref, Transport, [Server]) ->
+    {ok, Socket} = ranch:handshake(Ref),
     ok = Transport:setopts(Socket, [{active, once}, {keepalive, true}]),
     gen_server:enter_loop(?MODULE, [], #state{
         socket = Socket, transport = Transport, server = Server

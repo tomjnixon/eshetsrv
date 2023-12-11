@@ -9,7 +9,6 @@ start(_Type, _Args) ->
 
     {ok, _} = ranch:start_listener(
         tcp_eshetnet,
-        100,
         ranch_tcp,
         [{port, Port}],
         eshetnet_proto,
