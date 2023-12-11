@@ -36,8 +36,8 @@ connect() ->
     end,
     {Pid, MRef, StreamRef}.
 
-send_json(Pid, Json) ->
-    gun:ws_send(Pid, {text, jiffy:encode(Json)}).
+send_json(Pid, StreamRef, Json) ->
+    gun:ws_send(Pid, StreamRef, {text, jiffy:encode(Json)}).
 
 recv_json(Pid, StreamRef) ->
     receive
@@ -52,20 +52,20 @@ recv_json(Pid, StreamRef) ->
 
 check_call(_Config) ->
     {Pid, _MRef, StreamRef} = connect(),
-    ok = send_json(Pid, [<<"hello">>, 1, 30]),
+    ok = send_json(Pid, StreamRef, [<<"hello">>, 1, 30]),
     [<<"hello_id">>, _Id] = recv_json(Pid, StreamRef),
 
-    ok = send_json(Pid, [<<"action_call">>, 0, <<"/action">>, []]),
+    ok = send_json(Pid, StreamRef, [<<"action_call">>, 0, <<"/action">>, []]),
     [<<"reply">>, 0, [<<"ok">>, <<"action_result">>]] = recv_json(Pid, StreamRef),
 
     ok = gun:close(Pid).
 
 check_observe(_Config) ->
     {Pid, _MRef, StreamRef} = connect(),
-    ok = send_json(Pid, [<<"hello">>, 1, 30]),
+    ok = send_json(Pid, StreamRef, [<<"hello">>, 1, 30]),
     [<<"hello_id">>, _Id] = recv_json(Pid, StreamRef),
 
-    ok = send_json(Pid, [<<"state_observe">>, 1, <<"/server_state">>]),
+    ok = send_json(Pid, StreamRef, [<<"state_observe">>, 1, <<"/server_state">>]),
     [<<"reply_state">>, 1, [<<"ok">>, <<"unknown">>]] = recv_json(Pid, StreamRef),
 
     ok = eshet:set(eshetsrv_state, <<"/server_state">>, <<"foo">>),
@@ -77,14 +77,14 @@ check_observe(_Config) ->
 
 check_observe_time(_Config) ->
     {Pid, _MRef, StreamRef} = connect(),
-    ok = send_json(Pid, [<<"hello">>, 1, 30]),
+    ok = send_json(Pid, StreamRef, [<<"hello">>, 1, 30]),
     [<<"hello_id">>, _Id] = recv_json(Pid, StreamRef),
 
     ok = eshet:set(eshetsrv_state, <<"/server_state">>, <<"foo">>),
 
     timer:sleep(200),
 
-    ok = send_json(Pid, [<<"state_observe_t">>, 1, <<"/server_state">>]),
+    ok = send_json(Pid, StreamRef, [<<"state_observe_t">>, 1, <<"/server_state">>]),
     [<<"reply_state">>, 1, [<<"ok">>, [<<"known">>, <<"foo">>], T]] = recv_json(Pid, StreamRef),
 
     true = erlang:abs(T - 0.2) < 0.05,
