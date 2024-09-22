@@ -5,6 +5,39 @@
 
 -include("messages.hrl").
 
+-dialyzer({no_underspecs, [msgpack_pack/1, pack/1]}).
+
+%% .. _binary_protocol:
+%%
+%% Binary Protocol
+%% ===============
+%%
+%% This document defines the ESHET binary protocol, which consists of a
+%% bidirectional stream of bytes, encoded as described below, representing a
+%% bi-directional stream of messages defined in the :ref:`generic_protocol`.
+%%
+%% This protocol is typically carried over TCP, and assumes that the
+%% connection-oriented semantics of TCP are present, meaning that the client
+%% and server both observe a "connection" event, after which all messages are
+%% delivered in both directions, until the connection closes. Specifically, the
+%% client assumes that its hello message will be received, and the server
+%% assumes that its reply will be received by the client.
+%%
+%% Other transports (e.g. SSL) may meet these requirements, but serial ports do
+%% not, for example.
+%%
+%% Protocol errors (see :ref:`errors`) are handled by closing the connection.
+%%
+%% The conventions used in this document are descried in :ref:`conventions`.
+%%
+%% Utility Functions
+%% -----------------
+%%
+%% ``msgpack_pack`` turns an internal representation of msgpack values into
+%% binary strings:
+
+-spec msgpack_pack(any()) -> binary() | {error, _}.
+%%% SKIP
 msgpack_pack(Value) ->
     msgpack:pack(eshet_common:format_json(Value), [
         {pack_str, from_binary},
@@ -17,6 +50,10 @@ msgpack_unpack(Msgpack) ->
         {unpack_binary, as_tagged_binary}
     ]).
 
+%% ``pack_time`` converts the native time format into a number of milliseconds,
+%% currently only used in ``reply_state_t()`` messages.
+-spec pack_time(integer()) -> integer().
+%%% SKIP
 pack_time(Time) ->
     erlang:convert_time_unit(Time, native, millisecond).
 
@@ -225,6 +262,25 @@ parse_payload(<<16#47, Id:16, Rest/binary>>) ->
 parse_payload(_) ->
     error.
 
+%% Message Format
+%% --------------
+%%
+%% Single messages are packed using the ``pack_payload`` function. In general
+%% this returns:
+%%
+%% * A single byte, whose value indicates the type and structure of the message
+%%   (e.g. ``{reply, Id, {ok, Msg}}`` has a different first byte from ``{reply,
+%%   Id, {error, Msg}}``).
+%%
+%% * All non-msgpack elements of the message, packed depending on the type:
+%%
+%%     * Integers are packed in network byte order (big endian), with an
+%%       appropriate number of bits (defined below).
+%%     * Strings (for paths) are zero-terminated.
+%%
+%% * If the message contains a msgpack element, it is packed with
+%%   ``msgpack_pack``, with no termination.
+
 -spec pack_payload(message()) -> binary().
 
 % client to server
@@ -309,12 +365,29 @@ pack_payload({state_changed, Path, unknown}) ->
 pack_payload({state_set, Id, Path, Msg}) ->
     <<16#47, Id:16, Path/binary, 0, (msgpack_pack(Msg))/binary>>.
 
+%% Framing
+%% -------
+%%
+%% Before messages are transmitted, they are wrapped in a frame structure,
+%% applied by ``pack``. This takes a ``message()``, and returns a binary containing:
+%%
+%% * A byte with value 0x47, used by parsers to check that messages are
+%%   properly framed.
+%% * The 2 byte length of the serialised message (not including this framing).
+%% * The serialised message, according to ``pack_payload``.
+
+-spec pack(message()) -> {ok, binary()} | {error, too_long}.
 pack(Payload) ->
     PackedPayload = pack_payload(Payload),
     case byte_size(PackedPayload) of
-        Len when Len < 1 bsl 16 -> {ok, <<16#47, Len:16, PackedPayload/binary>>};
+        Len when Len < 16#10000 -> {ok, <<16#47, Len:16, PackedPayload/binary>>};
         _ -> {error, too_long}
     end.
+
+%% A correctly-formatted stream consists of the concatenated return values of
+%% ``pack``.
+%%
+%%% SKIP
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
