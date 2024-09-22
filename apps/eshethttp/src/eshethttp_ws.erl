@@ -55,7 +55,7 @@ from_json([Cmd | Rest]) ->
 
 % convert internal message format to json
 to_json(Message) ->
-    eshet_common:format_json(erlang:tuple_to_list(mangle_message(Message))).
+    eshet_common:format_json(mangle_message(Message)).
 
 % convert time format to floating point seconds
 mangle_message({reply_state, Id, {ok, Value, T}}) ->
