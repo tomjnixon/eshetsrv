@@ -162,11 +162,12 @@ remove(Tree, Path) ->
 
 -type update_fun() :: fun((nothing | {leaf, any()}) -> {leaf, any()} | nothing).
 -type update_fun_ret() :: fun((nothing | {leaf, any()}) -> {leaf, any(), any()} | {nothing, any()}).
+-type update_error() :: path_is_directory | not_a_directory | no_such_node.
 -spec update(tree(), path(), update_fun() | update_fun_ret()) ->
     {ok, tree()}
     | {ok, tree(), any()}
-    | {error, path_is_directory}
-    | {error, not_a_directory}.
+    | {error, update_error()}
+    | {error, update_error(), any()}.
 update(Tree, Path, Fun) ->
     Action =
         case lookup(Tree, Path) of
@@ -182,6 +183,8 @@ update(Tree, Path, Fun) ->
                 {leaf, NewLeaf} ->
                     put(Tree, Path, NewLeaf);
                 nothing ->
+                    % TODO: should not call remove if there is no node, as a
+                    % Fun being nothing->nothing should not be an error
                     remove(Tree, Path);
                 {leaf, NewLeaf, Ret} ->
                     {Type, Value} = put(Tree, Path, NewLeaf),
