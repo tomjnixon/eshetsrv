@@ -2,47 +2,17 @@
 % lines starting with %% are turned into an RST document that describes the
 % protocol
 
+%% .. _generic_protocol:
+%%
 %% Generic Protocol
 %% ================
 %%
-%% This document describes the generic ESHET protocol, which consists of a series
-%% of messages transmitted between the client and the server. The specific binary
-%% format of these message is described elsewhere.
+%% This document describes the generic ESHET protocol, which consists of a
+%% series of messages transmitted between the client and the server. A binary
+%% format of these message is described in :ref:`binary_protocol`, and a
+%% websocket format in :ref:`websocket_protocol`.
 %%
-%% Conventions
-%% -----------
-%%
-%% This specification is slightly odd, because it is derived from comments in an
-%% erlang implementation file. This makes it easy to keep in sync with the
-%% implementation, but the syntax may be unfamiliar. This also makes it harder to
-%% fix some obvious inconsistencies, so that hasn't been done yet.
-%%
-%% Messages are defined using the `erlang type syntax`_, which is briefly
-%% described here.
-%%
-%% .. _erlang type syntax: https://www.erlang.org/doc/system/typespec.html
-%%
-%% Type expressions can be:
-%%
-%% * a built-in type:
-%%
-%%   * ``binary()``: a binary string (series of bytes).
-%%   * ``integer()``: an arbitrary-size integer.
-%%   * ``any()``: any type.
-%%
-%% * ``type_name()``: a user-defined type named ``type_name``.
-%% * ``some_atom``: an atom (only compares equal to other atoms with the same
-%%   name).
-%% * ``1..5``: a range of integers, in this case between 1 and 5 inclusive.
-%%   Integers can also be written in hex, like ``16#ff`` for 255.
-%% * ``{ok, any()}``: a tuple of values, in this case with two elements: the atom
-%%   ``ok``, and a value with any type.
-%% * ``[integer()]``: a list of values, in this case, integers.
-%% * ``type_a | type_b``: a sum type, in this case either ``type_a`` or ``type_b``.
-%%
-%% User-defined types are defined with the syntax ``-type type_name() ::
-%% type_expression.``; in this case ``type_name()`` will refer to
-%% ``type_expression``.
+%% The conventions used in this document are descried in :ref:`conventions`.
 %%
 %% Common Types
 %% ------------
@@ -391,6 +361,8 @@
 %%   `set()` causes the server to send `state_set()` to the client which owns
 %%   it, and forward the reply.
 %%
+%% .. _errors:
+%%
 %% Errors
 %% ------
 %%
@@ -400,7 +372,7 @@
 %%
 %% Handling of protocol errors (e.g. sending any message for which there is not an
 %% obvious path for the server to reply with an error, for example sending a
-%% `reply()` message with an unused ID) is not defined by the abstract protocol.
+%% `reply()` message with an unused ID) is not defined by the generic protocol.
 %% In the future, a message may be added to indicate this condition, only to aid
 %% in debugging.
 %%
