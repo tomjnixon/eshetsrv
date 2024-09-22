@@ -7,6 +7,25 @@
 % the rest of the system is therefore performed in another gen_server,
 % eshethttp_ws_server.
 
+%% .. _websocket_protocol:
+%%
+%% Websocket Protocol
+%% ==================
+%%
+%% This document defines the ESHET websocket protocol, which is a simple
+%% encapsulation of the generic messages defined in :ref:`generic_protocol` in
+%% websocket messages.
+%%
+%% One generic message is translated by calling ``to_json(Message)``, encoding
+%% the result as JSON, and sending it as one websocket text message.
+%%
+%% As in the :ref:`binary protocol <binary_protocol>`, errors (see
+%% :ref:`errors`) are handled by closing the connection.
+%%
+%% The conventions used in this document are descried in :ref:`conventions`.
+%%
+%%% SKIP
+
 -export([init/2]).
 -export([websocket_init/1]).
 -export([websocket_handle/2]).
@@ -53,9 +72,24 @@ from_json([<<"state_changed">>, Path, <<"unknown">>]) ->
 from_json([Cmd | Rest]) ->
     erlang:list_to_tuple([cmd_to_atom(Cmd) | Rest]).
 
+%% Message Mangling
+%% ----------------
+%%
+%% Given a message, ``to_json`` converts it to a structure which can be
+%% json-encoded.
+
 % convert internal message format to json
 to_json(Message) ->
     eshet_common:format_json(mangle_message(Message)).
+
+%%
+%% ``eshet_common:format_json`` applies the following transformations:
+%%
+%% * Tuples are converted to lists.
+%% * Atoms (except ``true``, ``false`` and ``none``) are converted to strings.
+%%
+%% ``mangle_message`` applies other necessary transformations, currently only
+%% converting the time in ``reply_state_t()`` to floating point seconds.
 
 % convert time format to floating point seconds
 mangle_message({reply_state, Id, {ok, Value, T}}) ->
@@ -63,6 +97,20 @@ mangle_message({reply_state, Id, {ok, Value, T}}) ->
     {reply_state, Id, {ok, Value, TS}};
 mangle_message(Message) ->
     Message.
+
+%% The end result is that a generic message like
+%%
+%% .. code-block:: erlang
+%%
+%%    {reply, 42, {ok, true}}
+%%
+%% becomes
+%%
+%% .. code-block:: erlang
+%%
+%%    ["reply", 42, ["ok", true]]
+%%
+%%% SKIP
 
 websocket_handle({_Type, Data}, WSServer) ->
     try jiffy:decode(Data, [return_maps]) of
