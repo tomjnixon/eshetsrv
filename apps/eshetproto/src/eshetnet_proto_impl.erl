@@ -3,6 +3,8 @@
 -export([parse_payload/1]).
 -export([pack/1]).
 
+-include("messages.hrl").
+
 msgpack_pack(Value) ->
     msgpack:pack(eshet_common:format_json(Value), [
         {pack_str, from_binary},
@@ -44,6 +46,7 @@ parse(Msg) ->
             error
     end.
 
+-spec parse_payload(binary()) -> message() | error.
 parse_payload(<<16#01, Version:8, TimeoutS:16>>) ->
     {hello, Version, TimeoutS};
 parse_payload(<<16#02, Version:8, TimeoutS:16, ClientIDPack/binary>>) ->
@@ -221,6 +224,8 @@ parse_payload(<<16#47, Id:16, Rest/binary>>) ->
     end;
 parse_payload(_) ->
     error.
+
+-spec pack_payload(message()) -> binary().
 
 % client to server
 pack_payload({hello, Version, TimeoutS}) ->
