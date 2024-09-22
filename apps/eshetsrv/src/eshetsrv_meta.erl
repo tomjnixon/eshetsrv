@@ -18,7 +18,7 @@
 
 %% API.
 
--spec start_link(term()) -> {ok, pid()}.
+-spec start_link(pid()) -> gen_server:start_ret().
 start_link(Srv) ->
     gen_server:start_link(?MODULE, [Srv], []).
 

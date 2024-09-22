@@ -13,7 +13,7 @@
 -export([terminate/2]).
 -export([code_change/3]).
 
--type opts() :: [any()].
+-type opts() :: [pid()].
 -export_type([opts/0]).
 
 -record(state, {
@@ -31,7 +31,7 @@ start_link(Ref, Transport, Opts) ->
     Pid = proc_lib:spawn_link(?MODULE, init, [Ref, Transport, Opts]),
     {ok, Pid}.
 
--spec init(ranch:ref(), module(), opts()) -> ok.
+-spec init(ranch:ref(), module(), opts()) -> no_return().
 init(Ref, Transport, [Server]) ->
     {ok, Socket} = ranch:handshake(Ref),
     ok = Transport:setopts(Socket, [{active, once}, {keepalive, true}]),

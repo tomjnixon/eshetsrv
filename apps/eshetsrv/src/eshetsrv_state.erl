@@ -21,11 +21,11 @@
 
 %% API.
 
--spec start_link() -> {ok, pid()}.
+-spec start_link() -> gen_server:start_ret().
 start_link() ->
     gen_server:start_link(?MODULE, [], []).
 
--spec start_link(term()) -> {ok, pid()}.
+-spec start_link(gen_server:server_name()) -> gen_server:start_ret().
 start_link(Name) ->
     gen_server:start_link(Name, ?MODULE, [], []).
 
