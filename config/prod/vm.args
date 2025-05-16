@@ -1,4 +1,4 @@
--name eshet
+-sname eshet@localhost
 -setcookie eshet
 -kernel inet_dist_use_interface {127,0,0,1}
 -heart
