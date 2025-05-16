@@ -66,16 +66,6 @@ let
       };
       beamDeps = [ ];
     };
-    gun = builder {
-      name = "gun";
-      version = "2.0.1";
-      src = fetchHex {
-        pkg = "gun";
-        version = "2.0.1";
-        sha256 = "sha256-oQvI1glrlQIgUCIzT3GcyaCNmtz7/A2+6e8xtWJ0ogs=";
-      };
-      beamDeps = [ cowlib ];
-    };
     eshet = builder {
       name = "eshet";
       version = "git";
@@ -96,6 +86,16 @@ let
         sha256 = "sha256-Ov3Mtxg8xvFDyxTTz1H6AOU9ueyAzc1SVIL16ZvEHWs=";
       };
       beamDeps = [ cowlib ranch ];
+    };
+    gun = builder {
+      name = "gun";
+      version = "2.0.1";
+      src = fetchHex {
+        pkg = "gun";
+        version = "2.0.1";
+        sha256 = "sha256-oQvI1glrlQIgUCIzT3GcyaCNmtz7/A2+6e8xtWJ0ogs=";
+      };
+      beamDeps = [ cowlib ];
     };
   };
 in self
