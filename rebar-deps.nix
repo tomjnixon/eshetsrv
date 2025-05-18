@@ -66,17 +66,6 @@ let
       };
       beamDeps = [ ];
     };
-    eshet = builder {
-      name = "eshet";
-      version = "git";
-      src = fetchFromGitHub {
-        owner = "tomjnixon";
-        repo = "eshet";
-        rev = "4c9de686129066d9f28bcf1c26e4eb00d9257182";
-        sha256 = "0s548hp2h2mi52l6949p3hcjqrngd61sg1z2dwjv7bxvncmxkrb1";
-      };
-      beamDeps = [ ];
-    };
     cowboy = builder {
       name = "cowboy";
       version = "2.10.0";
