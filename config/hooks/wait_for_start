@@ -1,0 +1,14 @@
+# wait for the start script to complete
+
+# this is useful to ensure that the server is ready to accept connections when
+# running in daemon mode in test scripts
+
+# there is a ping test which runs before this, so it's safe to just exit if the
+# node fails
+
+while status="$(erl_eval 'erlang:element(2, init:get_status()).' 2> /dev/null)"; do
+    if [ "started" = "$status" ]; then
+        break
+    fi
+    sleep 1
+done
