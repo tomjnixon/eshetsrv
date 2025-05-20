@@ -14,6 +14,7 @@
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        lib = pkgs.lib;
         beamPackages = pkgs.beam_nox.packages.erlang;
         # to update, run: nix run .#rebar3 as test nix lock
         deps = import ./rebar-deps.nix {
@@ -33,6 +34,26 @@
           releaseType = "release";
           profile = "prod";
           beamDeps = builtins.attrValues deps;
+
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+
+          # don't include ERTS, provide it through a wrapper instead
+          postPatch = ''
+            substituteInPlace rebar.config --replace "{include_erts, true}"  "{include_erts, false}"
+          '';
+          preFixup = ''
+            find $out/rel/*/bin -type f -executable | while read f; do
+              wrapProgram $f --prefix PATH : ${
+                lib.makeBinPath [
+                  beamPackages.erlang
+                  pkgs.coreutils
+                  pkgs.gawk
+                  pkgs.gnugrep
+                  pkgs.gnused
+                ]
+              }
+            done
+          '';
 
           checkPhase = ''
             HOME=. epmd -daemon
